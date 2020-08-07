@@ -119,7 +119,19 @@ static void print_num(Num *in){
 	error(NULL);
 }
 
-void generator(Num *in){
+static void print_stmt(Stmt *in){
+	if(in->type == RET){
+		if(in->Nchild){
+			print_num(in->Nchild);
+			printf("pop %%rax\n");
+		}
+		printf("ret\n");
+		return;
+	}
+	error("print_statement");
+}
+
+void generator(void *in){
 	if(in == NULL){
 		fprintf(stderr, "generator error\n");
 		exit(1);
@@ -127,8 +139,5 @@ void generator(Num *in){
 	printf(".globl _main\n");
 	printf("_main:\n");
 
-	print_num(in);
-
-	printf("pop %%rax\n");
-	printf("ret\n");
+	print_stmt(in);
 }

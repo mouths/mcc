@@ -14,21 +14,23 @@ try(){
 	fi
 }
 
-try 2 2
-try 1+2+3 6
-try 3-2-1 0
-try 2*3 6
-try 5/2 2
-try 5%2 1
-try 2*3-5%2 5
+try "return 2;" 2
+try "return 1+2+3;" 6
+try "return 3-2-1;" 0
+try "return 2*3;" 6
+try "return 5/2;" 2
+try "return 5%2;" 1
+try "return 2*3-5%2;" 5
 try "
+return
 ( 2 * 3 - 5 )% 2
+;
 " "1"
-try "-2+3" 1
-try "1<2" 1
-try "2>=1-5" 1
-try "2== 3" 0
-try "35 -5 != 20" 1
-try "341&682" 0
-try "85^171" 254
-try "85|171" 255
+try "return -2+3;" 1
+try "return 1<2;" 1
+try "return 2>=1-5;" 1
+try "return 2== 3;" 0
+try "return 35 -5 != 20;" 1
+try "return 341&682;" 0
+try "return 85^171;" 254
+try "return 85|171;" 255

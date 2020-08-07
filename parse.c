@@ -24,6 +24,13 @@ Num *new_Num(Ntype t){
 	return res;
 }
 
+Stmt *new_Stmt(Stype t){
+	Stmt *res = malloc(sizeof(Stmt));
+	res->type = t;
+	res->Nchild = NULL;
+	return res;
+}
+
 static void Spacing(){
 	char c;
 	while((c = str_getchar(input, pos))){
@@ -78,10 +85,10 @@ static Num *primary_expression(){
 		Spacing();
 		return res;
 	}
-	return error("primary_expression");
+	return NULL;
 }
 
-// unary_expression <- unary-operator primary_expression
+// unary_expression <- unary-operator? primary_expression
 // unary-operator <- '+' / '-'
 static Num *unary_expression(){
 	char c = str_getchar(input, pos);
@@ -92,16 +99,15 @@ static Num *unary_expression(){
 		res = new_Num(c == '+' ? PLUS : MINUS);
 		res->lhs = primary_expression();
 		return res;
-	}else{
-		res = primary_expression();
-		return res;
 	}
-	return error("unary_expression");
+	res = primary_expression();
+	return res;
 }
 
 // multiplicative_expression <- unary_expression (('*' / '-' / '%') unary_expression)*
 static Num *multiplicative_expression(){
 	Num *res = unary_expression();
+	if(!res)return res;
 	char c = str_getchar(input, pos);
 	while(c == '*' || c == '/' || c == '%'){
 		Num *tmp = new_Num(NUM);
@@ -130,6 +136,7 @@ static Num *multiplicative_expression(){
 // additive_expression <- multiplicative_expression (('+' / '-') multiplicative_expression)*
 static Num *additive_expression(){
 	Num *res = multiplicative_expression();
+	if(!res)return res;
 	char c = str_getchar(input, pos);
 	while(c == '+' || c == '-'){
 		Num *tmp = new_Num(c == '+' ? ADD : SUB);
@@ -144,10 +151,13 @@ static Num *additive_expression(){
 	return res;
 }
 
+// TODO shift-expression
+
 // relational_expression <- additive_expression (relational-operator additive_expression)*
 // relational-operator <- '<=' / '>=' / '<' / '>'
 static Num *relational_expression(){
 	Num *res = additive_expression();
+	if(!res)return res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
 	while(c == '<' || c == '>'){
@@ -171,6 +181,7 @@ static Num *relational_expression(){
 // equality_expression <- relational_expression (('==' / '!=') relational_expression)*
 static Num *equality_expression(){
 	Num *res = relational_expression();
+	if(!res)return res;
 	Num *tmp;
 	char *c = str_pn(input, pos);
 	while(strncmp("==", c, 2) == 0 || strncmp(c, "!=", 2) == 0){
@@ -189,6 +200,7 @@ static Num *equality_expression(){
 // AND_expression <- equality_expression ('&' equlity_expression)*
 static Num *and_expression(){
 	Num *res = equality_expression();
+	if(!res)return res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
 	while(c == '&'){
@@ -206,6 +218,7 @@ static Num *and_expression(){
 // exclusive_OR_expression <- AND_expression ('^' AND_expression)*
 static Num *exclusive_or_expression(){
 	Num *res = and_expression();
+	if(!res)return res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
 	while(c == '^'){
@@ -223,6 +236,7 @@ static Num *exclusive_or_expression(){
 // inclusive_OR_expression <- exclusive_OR_expression ('|' exclusive_OR_expression)*
 static Num *inclusive_or_expression(){
 	Num *res = exclusive_or_expression();
+	if(!res)return res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
 	while(c == '|'){
@@ -237,14 +251,34 @@ static Num *inclusive_or_expression(){
 	return res;
 }
 
+// TODO logical-AND-expression ~ assignment-expression
+
 // expression <- equality_expression
 static Num *expression(){
 	return inclusive_or_expression();
+}
+
+// jump_statement <- 'return' expression^opt ';'
+static Stmt *jump_statement(){
+	char *c = str_pn(input, pos);
+	Stmt *res;
+	if(strncmp(c, "return", 6) == 0){
+		pos += 6;
+		Spacing();
+		res = new_Stmt(RET);
+		res->Nchild = expression();
+		c = str_pn(input, pos);
+		if(*c != ';'){
+			error("jump-statement: no semicoron");
+		}
+		return res;
+	}
+	return error("jump-statement: undefined");
 }
 
 void *parse(str *s){
 	input = s;
 	pos = 0;
 	Spacing();
-	return expression();
+	return jump_statement();
 }
