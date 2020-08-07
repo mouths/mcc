@@ -5,3 +5,4 @@ mcc
 out
 out.S
 *.dSYM/
+*.pdf
