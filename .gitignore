@@ -1,0 +1,7 @@
+*.o
+*.d
+*.out
+mcc
+out
+out.S
+*.dSYM/
