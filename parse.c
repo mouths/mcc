@@ -49,7 +49,7 @@ static Num *constant(){
 		res->i = c - '0';
 		pos++;
 		while((c = str_getchar(input, pos))){
-			if(c <= '0' || '9' <= c)
+			if(c < '0' || '9' < c)
 				break;
 			res->i = res->i * 10 + c - '0';
 			pos++;
