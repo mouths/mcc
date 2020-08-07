@@ -23,8 +23,8 @@ Num *new_Num(Ntype t){
 	return res;
 }
 
-// num <- [0-9]+
-static Num *num(){
+//  constant <- [0-9]+
+static Num *constant(){
 	char c = str_getchar(input, pos);
 	Num *res;
 	if('0' <= c && c <= '9'){
@@ -39,12 +39,29 @@ static Num *num(){
 		}
 		return res;
 	}
-	return error("expr");
+	return NULL;
 }
 
-// term <- num (('*' / '-' / '%') num)*
+static Num *expression();
+// primary_expression <- constant / ( expression )
+static Num *primary_expression(){
+	Num *res = constant();
+	if(res)return res;
+	char c = str_getchar(input, pos);
+	if(c == '('){
+		pos++;
+		res = expression();
+		if(res == NULL)error("primary_expression:( expression )");
+		c = str_getchar(input, pos);
+		if(c != ')')error("primary_expression:missing )");
+		return res;
+	}
+	return error("primary_expression");
+}
+
+// term <- primary_expression (('*' / '-' / '%') primary_expression)*
 static Num *term(){
-	Num *res = num();
+	Num *res = primary_expression();
 	char c = str_getchar(input, pos);
 	while(c == '*' || c == '/' || c == '%'){
 		Num *tmp = new_Num(NUM);
@@ -62,14 +79,14 @@ static Num *term(){
 		pos++;
 		tmp->lhs = res;
 		res = tmp;
-		res->rhs = num();
+		res->rhs = primary_expression();
 		c = str_getchar(input, pos);
 	}
 	return res;
 }
 
-// expr <- term (('+' / '-') term)*
-static Num *expr(){
+// expression <- term (('+' / '-') term)*
+static Num *expression(){
 	Num *res = term();
 	char c = str_getchar(input, pos);
 	while(c == '+' || c == '-'){
@@ -86,5 +103,5 @@ static Num *expr(){
 void *parse(str *s){
 	input = s;
 	pos = 0;
-	return expr();
+	return expression();
 }
