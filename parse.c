@@ -42,12 +42,23 @@ static Num *num(){
 	return error("expr");
 }
 
-// term <- num (('*' / '-') num)*
+// term <- num (('*' / '-' / '%') num)*
 static Num *term(){
 	Num *res = num();
 	char c = str_getchar(input, pos);
-	while(c == '*' || c == '/'){
-		Num *tmp = new_Num(c == '*' ? MUL : DIV);
+	while(c == '*' || c == '/' || c == '%'){
+		Num *tmp = new_Num(NUM);
+		switch(c){
+			case '*':
+				tmp->type = MUL;
+				break;
+			case '/':
+				tmp->type = DIV;
+				break;
+			case '%':
+				tmp->type = MOD;
+				break;
+		}
 		pos++;
 		tmp->lhs = res;
 		res = tmp;

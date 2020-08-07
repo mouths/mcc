@@ -39,14 +39,14 @@ static void print_num(Num *in){
 		printf("%s %%rbx, %%rax\n", code);
 		printf("push %%rax\n");
 		return;
-	}else if(in->type == DIV){
+	}else if(in->type == DIV || in->type == MOD){
 		print_num(in->lhs);
 		print_num(in->rhs);
 		printf("mov $0, %%rdx\n");
 		printf("pop %%rbx\n");
 		printf("pop %%rax\n");
 		printf("div %%rbx\n");
-		printf("push %%rax\n");
+		printf("push %%r%cx\n", in->type == DIV ? 'a' : 'd');
 		return;
 	}
 	error(NULL);
