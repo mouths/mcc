@@ -42,16 +42,31 @@ static Num *num(){
 	return error("expr");
 }
 
-// expr <- num (('+' / '-') num)*
-static Num *expr(){
+// term <- num (('*' / '-') num)*
+static Num *term(){
 	Num *res = num();
+	char c = str_getchar(input, pos);
+	while(c == '*' || c == '/'){
+		Num *tmp = new_Num(c == '*' ? MUL : DIV);
+		pos++;
+		tmp->lhs = res;
+		res = tmp;
+		res->rhs = num();
+		c = str_getchar(input, pos);
+	}
+	return res;
+}
+
+// expr <- term (('+' / '-') term)*
+static Num *expr(){
+	Num *res = term();
 	char c = str_getchar(input, pos);
 	while(c == '+' || c == '-'){
 		Num *tmp = new_Num(c == '+' ? ADD : SUB);
 		pos++;
 		tmp->lhs = res;
 		res = tmp;
-		res->rhs = num();
+		res->rhs = term();
 		c = str_getchar(input, pos);
 	}
 	return res;

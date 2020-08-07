@@ -2,7 +2,7 @@
 
 try(){
 	echo -e $1 | ./mcc > ./out.S
-	clang -g3 -o ./out.out ./out.S
+	clang -g -o ./out.out ./out.S
 	./out.out
 	RES=`echo $?`
 	if [ $RES == $2 ]; then
@@ -17,3 +17,5 @@ try(){
 try 2 2
 try 1+2+3 6
 try 3-2-1 0
+try 2*3 6
+try 5/2 2
