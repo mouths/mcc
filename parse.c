@@ -186,9 +186,60 @@ static Num *equality_expression(){
 	return res;
 }
 
+// AND_expression <- equality_expression ('&' equlity_expression)*
+static Num *and_expression(){
+	Num *res = equality_expression();
+	Num *tmp;
+	char c = str_getchar(input, pos);
+	while(c == '&'){
+		pos++;
+		Spacing();
+		tmp = new_Num(AND);
+		tmp->lhs = res;
+		res = tmp;
+		res->rhs = equality_expression();
+		c = str_getchar(input, pos);
+	}
+	return res;
+}
+
+// exclusive_OR_expression <- AND_expression ('^' AND_expression)*
+static Num *exclusive_or_expression(){
+	Num *res = and_expression();
+	Num *tmp;
+	char c = str_getchar(input, pos);
+	while(c == '^'){
+		pos++;
+		Spacing();
+		tmp = new_Num(XOR);
+		tmp->lhs = res;
+		res = tmp;
+		res->rhs = and_expression();
+		c = str_getchar(input, pos);
+	}
+	return res;
+}
+
+// inclusive_OR_expression <- exclusive_OR_expression ('|' exclusive_OR_expression)*
+static Num *inclusive_or_expression(){
+	Num *res = exclusive_or_expression();
+	Num *tmp;
+	char c = str_getchar(input, pos);
+	while(c == '|'){
+		pos++;
+		Spacing();
+		tmp = new_Num(OR);
+		tmp->lhs = res;
+		res = tmp;
+		res->rhs = exclusive_or_expression();
+		c = str_getchar(input, pos);
+	}
+	return res;
+}
+
 // expression <- equality_expression
 static Num *expression(){
-	return equality_expression();
+	return inclusive_or_expression();
 }
 
 void *parse(str *s){

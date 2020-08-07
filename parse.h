@@ -1,6 +1,6 @@
 #ifndef PARSE_h
 #define PARSE_h
-typedef enum{NUM, ADD, SUB, MUL, DIV, MOD, PLUS, MINUS, LES, GRT, LEQ, GEQ, EQ, NEQ} Ntype;
+typedef enum{NUM, ADD, SUB, MUL, DIV, MOD, PLUS, MINUS, LES, GRT, LEQ, GEQ, EQ, NEQ, AND, XOR, OR} Ntype;
 
 typedef struct Num{
 	Ntype type;

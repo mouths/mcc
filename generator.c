@@ -17,8 +17,14 @@ static void print_num(Num *in){
 	if(in->type == NUM){
 		printf("push $%d\n", in->i);
 		return;
-	}else if(in->type == ADD || in->type == SUB
-			|| in->type == MUL){
+	}else if(
+			in->type == ADD ||
+			in->type == SUB ||
+			in->type == MUL ||
+			in->type == AND ||
+			in->type == XOR ||
+			in->type == OR
+			){
 		char *code;
 		switch(in->type){
 			case ADD:
@@ -30,6 +36,14 @@ static void print_num(Num *in){
 			case MUL:
 				code = "imul";
 				break;
+			case AND:
+				code = "and";
+				break;
+			case XOR:
+				code = "xor";
+				break;
+			case OR:
+				code = "or";
 			default:;
 		}
 		print_num(in->lhs);
