@@ -52,7 +52,7 @@ char *str_p(str *a){
 }
 
 char *str_pn(str *a, int n){
-	if(a->len <= n)return NULL;
+	if(a->len < n)return NULL;
 	return a->body + n;
 }
 
