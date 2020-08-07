@@ -23,6 +23,22 @@ Num *new_Num(Ntype t){
 	return res;
 }
 
+static void Spacing(){
+	char c;
+	while((c = str_getchar(input, pos))){
+		if(
+				c == ' ' ||
+				c == '\t' ||
+				c == '\r' ||
+				c == '\n'
+		  ){
+			pos++;
+			continue;
+		}
+		break;
+	}
+}
+
 //  constant <- [0-9]+
 static Num *constant(){
 	char c = str_getchar(input, pos);
@@ -37,8 +53,10 @@ static Num *constant(){
 			res->i = res->i * 10 + c - '0';
 			pos++;
 		}
+		Spacing();
 		return res;
 	}
+	Spacing();
 	return NULL;
 }
 
@@ -50,10 +68,13 @@ static Num *primary_expression(){
 	char c = str_getchar(input, pos);
 	if(c == '('){
 		pos++;
+		Spacing();
 		res = expression();
 		if(res == NULL)error("primary_expression:( expression )");
 		c = str_getchar(input, pos);
 		if(c != ')')error("primary_expression:missing )");
+		pos++;
+		Spacing();
 		return res;
 	}
 	return error("primary_expression");
@@ -77,11 +98,13 @@ static Num *term(){
 				break;
 		}
 		pos++;
+		Spacing();
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = primary_expression();
 		c = str_getchar(input, pos);
 	}
+	Spacing();
 	return res;
 }
 
@@ -94,14 +117,17 @@ static Num *expression(){
 		pos++;
 		tmp->lhs = res;
 		res = tmp;
+		Spacing();
 		res->rhs = term();
 		c = str_getchar(input, pos);
 	}
+	Spacing();
 	return res;
 }
 
 void *parse(str *s){
 	input = s;
 	pos = 0;
+	Spacing();
 	return expression();
 }
