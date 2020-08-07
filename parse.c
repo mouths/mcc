@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "str.h"
 #include "parse.h"
@@ -126,8 +127,8 @@ static Num *multiplicative_expression(){
 	return res;
 }
 
-// expression <- multiplicative_expression (('+' / '-') multiplicative_expression)*
-static Num *expression(){
+// additive_expression <- multiplicative_expression (('+' / '-') multiplicative_expression)*
+static Num *additive_expression(){
 	Num *res = multiplicative_expression();
 	char c = str_getchar(input, pos);
 	while(c == '+' || c == '-'){
@@ -141,6 +142,53 @@ static Num *expression(){
 	}
 	Spacing();
 	return res;
+}
+
+// relational_expression <- additive_expression (relational-operator additive_expression)*
+// relational-operator <- '<=' / '>=' / '<' / '>'
+static Num *relational_expression(){
+	Num *res = additive_expression();
+	Num *tmp;
+	char c = str_getchar(input, pos);
+	while(c == '<' || c == '>'){
+		if(c == '<')tmp = new_Num(LES);
+		else tmp = new_Num(GRT);
+		tmp->lhs = res;
+		pos++;
+		c = str_getchar(input, pos);
+		if(c == '='){
+			tmp->type = (tmp->type == LES ? LEQ : GEQ);
+			pos++;
+		}
+		Spacing();
+		tmp->rhs = additive_expression();
+		res = tmp;
+		c = str_getchar(input, pos);
+	}
+	return res;
+}
+
+// equality_expression <- relational_expression (('==' / '!=') relational_expression)*
+static Num *equality_expression(){
+	Num *res = relational_expression();
+	Num *tmp;
+	char *c = str_pn(input, pos);
+	while(strncmp("==", c, 2) == 0 || strncmp(c, "!=", 2) == 0){
+		pos += 2;
+		Spacing();
+		if(*c == '!')tmp = new_Num(NEQ);
+		else tmp = new_Num(EQ);
+		tmp->lhs = res;
+		res = tmp;
+		res->rhs = relational_expression();
+		c = str_pn(input, pos);
+	}
+	return res;
+}
+
+// expression <- equality_expression
+static Num *expression(){
+	return equality_expression();
 }
 
 void *parse(str *s){

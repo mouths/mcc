@@ -57,6 +57,49 @@ static void print_num(Num *in){
 			printf("push %%rax\n");
 		}
 		return;
+	}else if(
+			in->type == LES ||
+			in->type == GRT ||
+			in->type == LEQ ||
+			in->type == GEQ ||
+			in->type == EQ ||
+			in->type == NEQ
+			){
+		print_num(in->lhs);
+		print_num(in->rhs);
+		printf("pop %%rax\n");
+		printf("pop %%rbx\n");
+		switch(in->type){
+			case LES:
+			case LEQ:
+				printf("cmp %%rax, %%rbx\n");
+				break;
+			case GRT:
+			case GEQ:
+			default:
+				printf("cmp %%rbx, %%rax\n");
+				break;
+		}
+		switch(in->type){
+			case LES:
+			case GRT:
+				printf("setl %%al\n");
+				break;
+			case LEQ:
+			case GEQ:
+				printf("setle %%al\n");
+				break;
+			case EQ:
+				printf("sete %%al\n");
+				break;
+			case NEQ:
+				printf("setne %%al\n");
+				break;
+			default:;
+		}
+		printf("movzb %%al, %%rax\n");
+		printf("push %%rax\n");
+		return ;
 	}
 
 	error(NULL);
