@@ -28,6 +28,7 @@ Stmt *new_Stmt(Stype t){
 	Stmt *res = malloc(sizeof(Stmt));
 	res->type = t;
 	res->Nchild = NULL;
+	res->rhs = res->lhs = NULL;
 	return res;
 }
 
@@ -258,6 +259,7 @@ static Num *expression(){
 	return inclusive_or_expression();
 }
 
+static Stmt *statement();
 // jump_statement <- 'return' expression^opt ';'
 static Stmt *jump_statement(){
 	char *c = str_pn(input, pos);
@@ -271,14 +273,78 @@ static Stmt *jump_statement(){
 		if(*c != ';'){
 			error("jump-statement: no semicoron");
 		}
+		pos++;
+		Spacing();
 		return res;
 	}
-	return error("jump-statement: undefined");
+	return NULL;
+}
+
+// expression_statement <- expression^opt ';'
+static Stmt *expression_statement(){
+	Stmt *res;
+	Num *tmp;
+	char c = str_getchar(input, pos);
+	tmp = expression();
+	c = str_getchar(input, pos);
+	if(c != ';'){
+		if(tmp)error("expression_statement:missing semicoron");
+		else return NULL;
+	}
+	res = new_Stmt(EXP);
+	res->Nchild = tmp;
+	pos++;
+	Spacing();
+	return res;
+}
+
+// block_item <- statement
+static Stmt *block_item(){
+	Stmt *res;
+	Stmt *tmp = statement();
+	if(!tmp)return NULL;
+	res = new_Stmt(ITEM);
+	res->rhs = tmp;
+	return res;
+}
+
+// block_item_list <- block_item+
+static Stmt *block_item_list(){
+	Stmt *res = block_item();
+	if(!res)return res;
+	Stmt *tmp = res;
+	while((tmp->lhs = block_item()))tmp = tmp->lhs;
+	return res;
+}
+
+// compound_statement <- '{' block_item_list^opt '}'
+static Stmt *compound_statement(){
+	char c = str_getchar(input, pos);
+	Stmt *res;
+	if(c != '{')return NULL;
+	pos++;
+	Spacing();
+	res = new_Stmt(CPD);
+	res->rhs = block_item_list();
+	c = str_getchar(input, pos);
+	if(c != '}')error("compound-expression");
+	pos++;
+	Spacing();
+	return res;
+}
+
+// statement <- expression_statement / jump_statement
+static Stmt *statement(){
+	Stmt *res;
+	if((res = compound_statement()))return res;
+	if((res = jump_statement()))return res;
+	if((res = expression_statement()))return res;
+	return NULL;
 }
 
 void *parse(str *s){
 	input = s;
 	pos = 0;
 	Spacing();
-	return jump_statement();
+	return statement();
 }

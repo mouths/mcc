@@ -8,10 +8,11 @@ typedef struct Num{
 	struct Num *lhs, *rhs;
 }Num;
 
-typedef enum{NONE, RET} Stype;
+typedef enum{NONE, RET, EXP, CPD, ITEM} Stype;
 typedef struct Stmt{
 	Stype type;
 	Num *Nchild;
+	struct Stmt *lhs, *rhs;
 }Stmt;
 
 void *parse(str *s);

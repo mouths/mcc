@@ -5,7 +5,7 @@ try(){
 	clang -g -o ./out.out ./out.S
 	./out.out
 	RES=`echo $?`
-	if [ $RES == $2 ]; then
+	if [ "$RES == $2" ]; then
 		echo "pass:\"$1\" -> $RES"
 	else
 		echo "expected:\"$1\" -> $2"
@@ -34,3 +34,8 @@ try "return 35 -5 != 20;" 1
 try "return 341&682;" 0
 try "return 85^171;" 254
 try "return 85|171;" 255
+try "{{return 10;}{
+10 +2;
+return 15;
+return 20;
+}}" 10
