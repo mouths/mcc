@@ -80,9 +80,27 @@ static Num *primary_expression(){
 	return error("primary_expression");
 }
 
-// term <- primary_expression (('*' / '-' / '%') primary_expression)*
-static Num *term(){
-	Num *res = primary_expression();
+// unary_expression <- unary-operator primary_expression
+// unary-operator <- '+' / '-'
+static Num *unary_expression(){
+	char c = str_getchar(input, pos);
+	Num *res;
+	if(c == '+' || c == '-'){
+		pos++;
+		Spacing();
+		res = new_Num(c == '+' ? PLUS : MINUS);
+		res->lhs = primary_expression();
+		return res;
+	}else{
+		res = primary_expression();
+		return res;
+	}
+	return error("unary_expression");
+}
+
+// multiplicative_expression <- unary_expression (('*' / '-' / '%') unary_expression)*
+static Num *multiplicative_expression(){
+	Num *res = unary_expression();
 	char c = str_getchar(input, pos);
 	while(c == '*' || c == '/' || c == '%'){
 		Num *tmp = new_Num(NUM);
@@ -101,16 +119,16 @@ static Num *term(){
 		Spacing();
 		tmp->lhs = res;
 		res = tmp;
-		res->rhs = primary_expression();
+		res->rhs = unary_expression();
 		c = str_getchar(input, pos);
 	}
 	Spacing();
 	return res;
 }
 
-// expression <- term (('+' / '-') term)*
+// expression <- multiplicative_expression (('+' / '-') multiplicative_expression)*
 static Num *expression(){
-	Num *res = term();
+	Num *res = multiplicative_expression();
 	char c = str_getchar(input, pos);
 	while(c == '+' || c == '-'){
 		Num *tmp = new_Num(c == '+' ? ADD : SUB);
@@ -118,7 +136,7 @@ static Num *expression(){
 		tmp->lhs = res;
 		res = tmp;
 		Spacing();
-		res->rhs = term();
+		res->rhs = multiplicative_expression();
 		c = str_getchar(input, pos);
 	}
 	Spacing();

@@ -48,7 +48,17 @@ static void print_num(Num *in){
 		printf("div %%rbx\n");
 		printf("push %%r%cx\n", in->type == DIV ? 'a' : 'd');
 		return;
+	}else if(in->type == PLUS || in->type == MINUS){
+		print_num(in->lhs);
+		if(in->type == MINUS){
+			printf("pop %%rbx\n");
+			printf("mov $0, %%rax\n");
+			printf("sub %%rbx, %%rax\n");
+			printf("push %%rax\n");
+		}
+		return;
 	}
+
 	error(NULL);
 }
 
@@ -61,7 +71,6 @@ void generator(Num *in){
 	printf("_main:\n");
 
 	print_num(in);
-	//printf("mov $%d, %%rax\n", in->i);
 
 	printf("pop %%rax\n");
 	printf("ret\n");
