@@ -8,6 +8,12 @@
 str *input;
 int pos;
 
+struct oplist{
+	char *op;
+	int len;
+	Ntype type;
+};
+
 static void *error(char *msg){
 	if(msg == NULL)
 		fprintf(stderr, "parse error:%d\n%.10s\n", pos, str_pn(input, pos));
@@ -254,9 +260,47 @@ static Num *inclusive_or_expression(){
 
 // TODO logical-AND-expression ~ assignment-expression
 
-// expression <- equality_expression
-static Num *expression(){
+// assignment_expression <- unary_expression assignment-operator assignment_expression / inclusive_or_expression
+// assignment-operator <- '=' / '*=' / '/=' / '%=' / '+=' / '-=' / '<<=' / '>>=' / '&=' / '^=' / '|='
+static Num *assignment_expression(){
+	const struct oplist ops[11] = {
+		{"=", 1, AS},
+		{"*=", 2, TAS},
+		{"/=", 2, DAS},
+		{"%=", 2, MAS},
+		{"+=", 2, AAS},
+		{"-=", 2, SAS},
+		{"<<=", 3, LSAS},
+		{">>=", 3, RSAS},
+		{"&=", 2, LAAS},
+		{"^=", 2, LXAS},
+		{"|=", 2, LOAS},
+	};
+	int p = pos;
+	Num *res = unary_expression();
+	Num *tmp;
+	if(!res)return inclusive_or_expression();
+	char *c = str_pn(input, pos);
+	for(int i = 0; i < 11; i++){
+		if(i == 0 && strncmp(c, "==", 2) == 0)continue;
+		if(strncmp(c, ops[i].op, ops[i].len) == 0){
+			pos += ops[i].len;
+			Spacing();
+			tmp = new_Num(ops[i].type);
+			tmp->lhs = res;
+			res = tmp;
+			if(!(res->rhs = assignment_expression()))
+				error("assignment_expression:rhs is NULL");
+			return res;
+		}
+	}
+	pos = p;
 	return inclusive_or_expression();
+}
+
+// expression <- inclusive_or_expression
+static Num *expression(){
+	return assignment_expression();
 }
 
 static Stmt *statement();

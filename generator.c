@@ -125,6 +125,8 @@ static void print_stmt(Stmt *in){
 			print_num(in->Nchild);
 			printf("pop %%rax\n");
 		}
+		printf("mov %%rbp, %%rsp\n");
+		printf("pop %%rbp\n");
 		printf("ret\n");
 		return;
 	}else if(in->type == EXP){
@@ -149,6 +151,9 @@ void generator(void *in){
 	}
 	printf(".globl _main\n");
 	printf("_main:\n");
+	printf("push %%rbp\n");
+	printf("mov %%rsp, %%rbp\n");
+	printf("sub $16, %%rsp\n");
 
 	print_stmt(in);
 }
