@@ -16,7 +16,7 @@ static void print_num(Num *in);
 
 static void print_addr(Num *in){
 	if(in->type == ID)
-		printf("push $%d\n", *(in->name) - 'a');
+		printf("push $%d\n", -(in->id));
 	else
 		print_num(in);
 }
@@ -130,7 +130,7 @@ static void print_num(Num *in){
 		print_num(in->rhs);
 		printf("pop %%rax\n");
 		printf("pop %%rbx\n");
-		printf("mov %%rax, (%%rbp, %%rbx, 4)\n");
+		printf("mov %%rax, (%%rbp, %%rbx, 8)\n");
 		printf("push %%rax\n");
 		return;
 	}else if(
@@ -138,7 +138,7 @@ static void print_num(Num *in){
 			){
 		print_addr(in);
 		printf("pop %%rbx\n");
-		printf("mov (%%rbp, %%rbx, 4), %%rax\n");
+		printf("mov (%%rbp, %%rbx, 8), %%rax\n");
 		printf("push %%rax\n");
 		return;
 	}
@@ -169,6 +169,16 @@ static void print_stmt(Stmt *in){
 		print_stmt(in->rhs);
 		if(in->lhs)print_stmt(in->lhs);
 		return;
+	}else if(in->type == MAIN){
+		printf(".globl _main\n");
+		printf("_main:\n");
+		printf("push %%rbp\n");
+		printf("mov %%rsp, %%rbp\n");
+		if(in->idcount)
+			printf("sub $%d, %%rsp\n", in->idcount * 8);
+
+		print_stmt(in->lhs);
+		return;
 	}
 	error("print_statement");
 }
@@ -178,11 +188,5 @@ void generator(void *in){
 		fprintf(stderr, "generator error\n");
 		exit(1);
 	}
-	printf(".globl _main\n");
-	printf("_main:\n");
-	printf("push %%rbp\n");
-	printf("mov %%rsp, %%rbp\n");
-	printf("sub $%d, %%rsp\n", 26 * 4);
-
 	print_stmt(in);
 }

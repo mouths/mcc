@@ -6,14 +6,16 @@ typedef struct Num{
 	Ntype type;
 	int i;
 	struct Num *lhs, *rhs;
-	char *name;
+	int id;
 }Num;
 
-typedef enum{NONE, RET, EXP, CPD, ITEM} Stype;
+typedef enum{NONE, RET, EXP, CPD, ITEM, MAIN} Stype;
+
 typedef struct Stmt{
 	Stype type;
 	Num *Nchild;
 	struct Stmt *lhs, *rhs;
+	int idcount;
 }Stmt;
 
 void *parse(str *s);

@@ -5,9 +5,11 @@
 
 #include "str.h"
 #include "parse.h"
+#include "tool.h"
 
 str *input;
 int pos;
+list *idlist;
 
 struct oplist{
 	char *op;
@@ -18,6 +20,11 @@ struct oplist{
 struct keywords{
 	char *word;
 	int len;
+};
+
+struct id_container{
+	char *name;
+	int id;
 };
 
 static void *error(char *msg){
@@ -33,7 +40,7 @@ Num *new_Num(Ntype t){
 	Num *res = malloc(sizeof(Num));
 	res->type = t;
 	res->lhs = res->rhs = NULL;
-	res->name = NULL;
+	res->id = 0;
 	return res;
 }
 
@@ -164,17 +171,33 @@ static int keyword(){
 	return -1;
 }
 
+static int id_container_cmp(const void *a, const void *b){
+	return strcmp(((struct id_container*)a)->name, ((struct id_container*)b)->name);
+}
+
 // identifier <- !keyword nondigit (nondigit / digit)*
 static Num *identifier(){
 	if(keyword() >= 0)return NULL;
 	Num *res;
 	int i = 1;
+	struct id_container *con, *tmp;
 	if(nondigit()){
 		while(nondigit_n(i) || digit_n(i))i++;
+		con = malloc(sizeof(struct id_container));
+		con->name = malloc(sizeof(char) * (i + 1));
+		strncpy(con->name, str_pn(input, pos), i);
+		con->name[i] = '\0';
 		res = new_Num(ID);
-		res->name = malloc(sizeof(char) * (i + 1));
-		strncpy(res->name, str_pn(input, pos), i);
-		res->name[i] = '\0';
+		tmp = list_search(con, id_container_cmp, idlist);
+		if(tmp == NULL){
+			list_append(con, idlist);
+			con->id = list_len(idlist);
+			res->id = con->id;
+		}else{
+			res->id = tmp->id;
+			free(con->name);
+			free(con);
+		}
 		pos += i;
 		Spacing();
 		return res;
@@ -497,9 +520,34 @@ static Stmt *statement(){
 	return NULL;
 }
 
+static Stmt *main_function(){
+	Stmt *res;
+	char *c = str_pn(input, pos);
+	if(strncmp(c, "int", 3) != 0)return NULL;
+	pos += 3;
+	Spacing();
+	c = str_pn(input, pos);
+	if(strncmp(c, "main", 4) != 0)return NULL;
+	pos += 4;
+	Spacing();
+	c = str_pn(input, pos);
+	if(*c != '(')return NULL;
+	pos++;
+	Spacing();
+	c = str_pn(input, pos);
+	if(*c != ')')return NULL;
+	pos++;
+	Spacing();
+	res = new_Stmt(MAIN);
+	res->lhs = statement();
+	res->idcount = list_len(idlist);
+	return res;
+}
+
 void *parse(str *s){
 	input = s;
 	pos = 0;
+	idlist = list_empty();
 	Spacing();
-	return statement();
+	return main_function();
 }
