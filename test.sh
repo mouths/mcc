@@ -5,7 +5,7 @@ try(){
 	clang -g -o ./out.out ./out.S
 	./out.out
 	RES=`echo $?`
-	if [ "$RES == $2" ]; then
+	if [ "$RES" == "$2" ]; then
 		echo "pass:\"$1\" -> $RES"
 	else
 		echo "expected:\"$1\" -> $2"
