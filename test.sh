@@ -14,27 +14,27 @@ try(){
 	fi
 }
 
-try "int main() return 2;" 2
-try "int main() return 1+2+3;" 6
-try "int main() return 3-2-1;" 0
-try "int main() return 2*3;" 6
-try "int main() return 5/2;" 2
-try "int main() return 5%2;" 1
-try "int main() return 2*3-5%2;" 5
+try "int main() {return 2;}" 2
+try "int main() {return 1+2+3;}" 6
+try "int main() {return 3-2-1;}" 0
+try "int main() {return 2*3;}" 6
+try "int main() {return 5/2;}" 2
+try "int main() {return 5%2;}" 1
+try "int main() {return 2*3-5%2;}" 5
 try "
-int main()
+int main(){
 return
 ( 2 * 3 - 5 )% 2
-;
+;}
 " "1"
-try "int main() return -2+3;" 1
-try "int main() return 1<2;" 1
-try "int main() return 2>=1-5;" 1
-try "int main() return 2== 3;" 0
-try "int main() return 35 -5 != 20;" 1
-try "int main() return 341&682;" 0
-try "int main() return 85^171;" 254
-try "int main() return 85|171;" 255
+try "int main() {return -2+3;}" 1
+try "int main() {return 1<2;}" 1
+try "int main() {return 2>=1-5;}" 1
+try "int main() {return 2== 3;}" 0
+try "int main() {return 35 -5 != 20;}" 1
+try "int main() {return 341&682;}" 0
+try "int main() {return 85^171;}" 254
+try "int main() {return 85|171;}" 255
 try "int main() {{return 10;}{
 10 +2;
 return 15;

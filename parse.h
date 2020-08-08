@@ -9,14 +9,22 @@ typedef struct Num{
 	int id;
 }Num;
 
-typedef enum{NONE, RET, EXP, CPD, ITEM, MAIN} Stype;
+typedef enum{NONE, RET, EXP, CPD, ITEM} Stype;
 
 typedef struct Stmt{
 	Stype type;
 	Num *Nchild;
 	struct Stmt *lhs, *rhs;
-	int idcount;
 }Stmt;
+
+typedef enum{FUN} Dtype;
+
+typedef struct Def{
+	Dtype type;
+	Stmt *Schild;
+	char *name;
+	int idcount;
+}Def;
 
 void *parse(str *s);
 #endif

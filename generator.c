@@ -169,18 +169,22 @@ static void print_stmt(Stmt *in){
 		print_stmt(in->rhs);
 		if(in->lhs)print_stmt(in->lhs);
 		return;
-	}else if(in->type == MAIN){
-		printf(".globl _main\n");
-		printf("_main:\n");
+	}
+	error("print_statement");
+}
+
+void print_def(Def *in){
+	if(in == NULL)error("print_def:NULL");
+	if(in->type == FUN){
+		printf("_%s:\n", in->name);
 		printf("push %%rbp\n");
 		printf("mov %%rsp, %%rbp\n");
 		if(in->idcount)
 			printf("sub $%d, %%rsp\n", in->idcount * 8);
-
-		print_stmt(in->lhs);
+		print_stmt(in->Schild);
 		return;
 	}
-	error("print_statement");
+	error("print_def");
 }
 
 void generator(void *in){
@@ -188,5 +192,6 @@ void generator(void *in){
 		fprintf(stderr, "generator error\n");
 		exit(1);
 	}
-	print_stmt(in);
+	printf(".globl _main\n");
+	print_def(in);
 }

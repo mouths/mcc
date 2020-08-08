@@ -36,7 +36,7 @@ static void *error(char *msg){
 	exit(1);
 }
 
-Num *new_Num(Ntype t){
+static Num *new_Num(Ntype t){
 	Num *res = malloc(sizeof(Num));
 	res->type = t;
 	res->lhs = res->rhs = NULL;
@@ -44,11 +44,20 @@ Num *new_Num(Ntype t){
 	return res;
 }
 
-Stmt *new_Stmt(Stype t){
+static Stmt *new_Stmt(Stype t){
 	Stmt *res = malloc(sizeof(Stmt));
 	res->type = t;
 	res->Nchild = NULL;
 	res->rhs = res->lhs = NULL;
+	return res;
+}
+
+static Def *new_Def(Dtype t){
+	Def *res = malloc(sizeof(Def));
+	res->type = t;
+	res->Schild = NULL;
+	res->name = NULL;
+	res->idcount = 0;
 	return res;
 }
 
@@ -94,27 +103,6 @@ static bool digit(){
 static bool digit_n(int n){
 	char c = str_getchar(input, pos + n);
 	return ('0' <= c && c <= '9');
-}
-
-//  constant <- digit+
-static Num *constant(){
-	char c = str_getchar(input, pos);
-	Num *res;
-	if(digit()){
-		res = new_Num(NUM);
-		res->i = c - '0';
-		pos++;
-		while((c = str_getchar(input, pos))){
-			if(!digit())
-				break;
-			res->i = res->i * 10 + c - '0';
-			pos++;
-		}
-		Spacing();
-		return res;
-	}
-	Spacing();
-	return NULL;
 }
 
 static int keyword(){
@@ -171,18 +159,47 @@ static int keyword(){
 	return -1;
 }
 
+static int is_identifier(){
+	if(keyword() >= 0)return 0;
+	int res = 0;
+	if(nondigit()){
+		res = 1;
+		while(nondigit_n(res) || digit_n(res))res++;
+	}
+	return res;
+}
+
+//  constant <- digit+
+static Num *constant(){
+	char c = str_getchar(input, pos);
+	Num *res;
+	if(digit()){
+		res = new_Num(NUM);
+		res->i = c - '0';
+		pos++;
+		while((c = str_getchar(input, pos))){
+			if(!digit())
+				break;
+			res->i = res->i * 10 + c - '0';
+			pos++;
+		}
+		Spacing();
+		return res;
+	}
+	Spacing();
+	return NULL;
+}
+
 static int id_container_cmp(const void *a, const void *b){
 	return strcmp(((struct id_container*)a)->name, ((struct id_container*)b)->name);
 }
 
 // identifier <- !keyword nondigit (nondigit / digit)*
 static Num *identifier(){
-	if(keyword() >= 0)return NULL;
 	Num *res;
-	int i = 1;
+	int i = is_identifier();
 	struct id_container *con, *tmp;
-	if(nondigit()){
-		while(nondigit_n(i) || digit_n(i))i++;
+	if(i > 0){
 		con = malloc(sizeof(struct id_container));
 		con->name = malloc(sizeof(char) * (i + 1));
 		strncpy(con->name, str_pn(input, pos), i);
@@ -520,34 +537,39 @@ static Stmt *statement(){
 	return NULL;
 }
 
-static Stmt *main_function(){
-	Stmt *res;
+// function_definition <- type-specifier identifier '(' ')' compound_statement
+// type-specifier <- 'int'
+static Def *function_definition(){
 	char *c = str_pn(input, pos);
-	if(strncmp(c, "int", 3) != 0)return NULL;
+	Def *res = new_Def(FUN);
+	if(strncmp(c, "int", 3) != 0 || keyword() < 0)return NULL;
 	pos += 3;
 	Spacing();
-	c = str_pn(input, pos);
-	if(strncmp(c, "main", 4) != 0)return NULL;
-	pos += 4;
+	int id = is_identifier();
+	if(id == 0)return NULL;
+	res->name = malloc(sizeof(char) * (id + 1));
+	strncpy(res->name, str_pn(input, pos), id);
+	res->name[id] = '\0';
+	pos += id;
 	Spacing();
 	c = str_pn(input, pos);
-	if(*c != '(')return NULL;
+	if(*c != '(') return NULL;
 	pos++;
 	Spacing();
 	c = str_pn(input, pos);
 	if(*c != ')')return NULL;
 	pos++;
 	Spacing();
-	res = new_Stmt(MAIN);
-	res->lhs = statement();
+	res->Schild = compound_statement();
 	res->idcount = list_len(idlist);
 	return res;
 }
+
 
 void *parse(str *s){
 	input = s;
 	pos = 0;
 	idlist = list_empty();
 	Spacing();
-	return main_function();
+	return function_definition();
 }
