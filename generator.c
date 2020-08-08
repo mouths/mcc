@@ -12,6 +12,15 @@ static void error(char *msg){
 	exit(1);
 }
 
+static void print_num(Num *in);
+
+static void print_addr(Num *in){
+	if(in->type == ID)
+		printf("push $%d\n", *(in->name) - 'a');
+	else
+		print_num(in);
+}
+
 static void print_num(Num *in){
 	if(in == NULL)error(NULL);
 	if(in->type == NUM){
@@ -114,6 +123,24 @@ static void print_num(Num *in){
 		printf("movzb %%al, %%rax\n");
 		printf("push %%rax\n");
 		return ;
+	}else if(
+			in->type == AS
+			){
+		print_addr(in->lhs);
+		print_num(in->rhs);
+		printf("pop %%rax\n");
+		printf("pop %%rbx\n");
+		printf("mov %%rax, (%%rbp, %%rbx, 4)\n");
+		printf("push %%rax\n");
+		return;
+	}else if(
+			in->type == ID
+			){
+		print_addr(in);
+		printf("pop %%rbx\n");
+		printf("mov (%%rbp, %%rbx, 4), %%rax\n");
+		printf("push %%rax\n");
+		return;
 	}
 
 	error(NULL);
@@ -153,7 +180,7 @@ void generator(void *in){
 	printf("_main:\n");
 	printf("push %%rbp\n");
 	printf("mov %%rsp, %%rbp\n");
-	printf("sub $16, %%rsp\n");
+	printf("sub $%d, %%rsp\n", 26 * 4);
 
 	print_stmt(in);
 }

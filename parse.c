@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "str.h"
 #include "parse.h"
@@ -12,6 +13,11 @@ struct oplist{
 	char *op;
 	int len;
 	Ntype type;
+};
+
+struct keywords{
+	char *word;
+	int len;
 };
 
 static void *error(char *msg){
@@ -27,6 +33,7 @@ Num *new_Num(Ntype t){
 	Num *res = malloc(sizeof(Num));
 	res->type = t;
 	res->lhs = res->rhs = NULL;
+	res->name = NULL;
 	return res;
 }
 
@@ -54,16 +61,44 @@ static void Spacing(){
 	}
 }
 
-//  constant <- [0-9]+
+// nondigit <- [a-zA-Z_]
+static bool nondigit(){
+	char c = str_getchar(input, pos);
+	return
+		c == '_' ||
+		('a' <= c && c <= 'z') ||
+		('A' <= c && c <= 'Z');
+}
+
+static bool nondigit_n(int n){
+	char c = str_getchar(input, pos + n);
+	return
+		c == '_' ||
+		('a' <= c && c <= 'z') ||
+		('A' <= c && c <= 'Z');
+}
+
+// digit <- [0-9]
+static bool digit(){
+	char c = str_getchar(input, pos);
+	return ('0' <= c && c <= '9');
+}
+
+static bool digit_n(int n){
+	char c = str_getchar(input, pos + n);
+	return ('0' <= c && c <= '9');
+}
+
+//  constant <- digit+
 static Num *constant(){
 	char c = str_getchar(input, pos);
 	Num *res;
-	if('0' <= c && c <= '9'){
+	if(digit()){
 		res = new_Num(NUM);
 		res->i = c - '0';
 		pos++;
 		while((c = str_getchar(input, pos))){
-			if(c < '0' || '9' < c)
+			if(!digit())
 				break;
 			res->i = res->i * 10 + c - '0';
 			pos++;
@@ -75,11 +110,84 @@ static Num *constant(){
 	return NULL;
 }
 
+static int keyword(){
+	const struct keywords keys[44] = {
+		{"auto", 4},
+		{"break", 5},
+		{"case", 4},
+		{"char", 4},
+		{"const", 5},
+		{"continue", 8},
+		{"default", 7},
+		{"do", 2},
+		{"double", 6},
+		{"else", 4},
+		{"enum", 4},
+		{"extern", 6},
+		{"float", 5},
+		{"for", 3},
+		{"goto", 4},
+		{"if", 2},
+		{"inline", 6},
+		{"int", 3},
+		{"long", 4},
+		{"register", 8},
+		{"restrict", 8},
+		{"return", 6},
+		{"short", 5},
+		{"signed", 6},
+		{"sizeof", 6},
+		{"static", 6},
+		{"struct", 6},
+		{"switch", 6},
+		{"typedef", 7},
+		{"union", 5},
+		{"unsigned", 8},
+		{"void", 4},
+		{"volatile", 8},
+		{"while", 5},
+		{"_Alignas", 8},
+		{"_Alignof", 8},
+		{"_Atomic", 7},
+		{"_Bool", 5},
+		{"_Complex", 8},
+		{"_Generic", 8},
+		{"_Imaginary", 10},
+		{"_Noreturn", 9},
+		{"_Static_assert", 14},
+		{"_Thread_local", 13},
+	};
+	char *c = str_pn(input, pos);
+	for(int i = 43; i >= 0; i--){
+		if(strncmp(c, keys[i].word, keys[i].len) == 0 && !nondigit_n(keys[i].len))return i;
+	}
+	return -1;
+}
+
+// identifier <- !keyword nondigit (nondigit / digit)*
+static Num *identifier(){
+	if(keyword() >= 0)return NULL;
+	Num *res;
+	int i = 1;
+	if(nondigit()){
+		while(nondigit_n(i) || digit_n(i))i++;
+		res = new_Num(ID);
+		res->name = malloc(sizeof(char) * (i + 1));
+		strncpy(res->name, str_pn(input, pos), i);
+		res->name[i] = '\0';
+		pos += i;
+		Spacing();
+		return res;
+	}
+	return NULL;
+}
+
 static Num *expression();
-// primary_expression <- constant / ( expression )
+// primary_expression <- constant / identifier / ( expression )
 static Num *primary_expression(){
-	Num *res = constant();
-	if(res)return res;
+	Num *res;
+	if((res = constant()))return res;
+	if((res = identifier()))return res;
 	char c = str_getchar(input, pos);
 	if(c == '('){
 		pos++;
@@ -332,7 +440,10 @@ static Stmt *expression_statement(){
 	tmp = expression();
 	c = str_getchar(input, pos);
 	if(c != ';'){
-		if(tmp)error("expression_statement:missing semicoron");
+		if(tmp){
+			fprintf(stderr, "expression_type:%d\n", tmp->type);
+			error("expression_statement:missing semicoron");
+		}
 		else return NULL;
 	}
 	res = new_Stmt(EXP);
