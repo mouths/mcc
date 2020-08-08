@@ -41,6 +41,6 @@ return 20;
 }}" 10
 try "{
 a = 5;
-a = a + a;
+a = a + a;;;;;;
 return a + 2;
 }" 12

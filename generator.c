@@ -157,8 +157,10 @@ static void print_stmt(Stmt *in){
 		printf("ret\n");
 		return;
 	}else if(in->type == EXP){
-		print_num(in->Nchild);
-		printf("pop %%rax\n");
+		if(in->Nchild){
+			print_num(in->Nchild);
+			printf("pop %%rax\n");
+		}
 		return;
 	}else if(in->type == CPD){
 		if(in->rhs)print_stmt(in->rhs);
