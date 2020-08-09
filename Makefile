@@ -6,7 +6,7 @@ TEST = test.sh
 TESTDIR = ./test/
 CFLAGS = -MMD -MP
 
-.PHONY: all clean
+.PHONY: all clean test
 
 test: $(TEST) $(TARGET)
 	./$(TEST)

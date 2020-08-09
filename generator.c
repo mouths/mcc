@@ -198,7 +198,7 @@ static void print_num(Num *in){
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == CALL){
-		printf("call _%s\n", in->name);
+		printf("call %s\n", in->name);
 		printf("push %%rax\n");
 		return;
 	}
@@ -236,7 +236,8 @@ static void print_stmt(Stmt *in){
 void print_def(Def *in){
 	if(in == NULL)error("print_def:NULL");
 	if(in->type == FUN){
-		printf("_%s:\n", in->name);
+		printf(".globl %s\n", in->name);
+		printf("%s:\n", in->name);
 		printf("push %%rbp\n");
 		printf("mov %%rsp, %%rbp\n");
 		if(in->idcount)
@@ -252,6 +253,6 @@ void generator(void *in){
 		fprintf(stderr, "generator error\n");
 		exit(1);
 	}
-	printf(".globl _main\n");
+	printf(".globl main\n");
 	print_def(in);
 }
