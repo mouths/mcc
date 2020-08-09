@@ -76,3 +76,14 @@ try "int main(){
 try "int main(){
 	return foo();
 }" 0
+try "int main(){
+	a = 3;
+	b = &a;
+	return *b;
+}" 3
+try "int main(){
+	a = 3;
+	b = 5;
+	c = &b + 8;
+	return *c;
+}" 3

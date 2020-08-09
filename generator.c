@@ -15,8 +15,12 @@ static void error(char *msg){
 static void print_num(Num *in);
 
 static void print_addr(Num *in){
-	if(in->type == ID)
-		printf("push $%d\n", -(in->id));
+	if(in->type == ID){
+		printf("mov $%d, %%rbx\n", -(in->id));
+		printf("lea (%%rbp, %%rbx, 8), %%rax\n", -(in->id));
+		printf("push %%rax\n");
+	}else if(in->type == DEREF)
+		print_num(in->lhs);
 	else
 		print_num(in);
 }
@@ -130,7 +134,7 @@ static void print_num(Num *in){
 		print_num(in->rhs);
 		printf("pop %%rax\n");
 		printf("pop %%rbx\n");
-		printf("mov %%rax, (%%rbp, %%rbx, 8)\n");
+		printf("mov %%rax, (%%rbx)\n");
 		printf("push %%rax\n");
 		return;
 	}else if(
@@ -175,8 +179,8 @@ static void print_num(Num *in){
 		print_num(in->rhs);
 		printf("pop %%rbx\n");
 		printf("pop %%rax\n");
-		printf("%s %%rbx, (%%rbp, %%rax, 8)\n", code);
-		printf("mov (%%rbp, %%rax, 8), %%rax\n");
+		printf("%s %%rbx, (%%rax)\n", code);
+		printf("mov (%%rax), %%rax\n");
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == DIVAS || in->type == MODAS){
@@ -186,19 +190,28 @@ static void print_num(Num *in){
 		printf("pop %%rbx\n");
 		printf("pop %%rcx\n");
 		printf("mov $0, %%rdx\n");
-		printf("mov (%%rbp, %%rcx, 8), %%rax\n");
+		printf("mov (%%rcx), %%rax\n");
 		printf("div %%rbx\n");
-		printf("mov %%r%cx, (%%rbp, %%rcx, 8)\n", c);
+		printf("mov %%r%cx, (%%rcx)\n", c);
 		printf("push %%r%cx\n", c);
 		return;
 	}else if(in->type == ID){
 		print_addr(in);
 		printf("pop %%rbx\n");
-		printf("mov (%%rbp, %%rbx, 8), %%rax\n");
+		printf("mov (%%rbx), %%rax\n");
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == CALL){
 		printf("call %s\n", in->name);
+		printf("push %%rax\n");
+		return;
+	}else if(in->type == PTR){
+		print_addr(in->lhs);
+		return;
+	}else if(in->type == DEREF){
+		print_num(in->lhs);
+		printf("pop %%rbx\n");
+		printf("mov (%%rbx), %%rax\n");
 		printf("push %%rax\n");
 		return;
 	}

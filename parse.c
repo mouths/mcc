@@ -265,14 +265,27 @@ static Num *postfix_expression(){
 }
 
 // unary_expression <- unary-operator? postfix_expression
-// unary-operator <- '+' / '-'
+// unary-operator <- '+' / '-' / '&' / '*'
 static Num *unary_expression(){
 	Num *res;
 	char c = str_getchar(input, pos);
-	if(c == '+' || c == '-'){
+	if(c == '+' || c == '-' || c == '&' || c == '*'){
 		pos++;
 		Spacing();
-		res = new_Num(c == '+' ? PLUS : MINUS);
+		switch(c){
+			case '+':
+				res = new_Num(PLUS);
+				break;
+			case '-':
+				res = new_Num(MINUS);
+				break;
+			case '&':
+				res = new_Num(PTR);
+				break;
+			case '*':
+				res = new_Num(DEREF);
+				break;
+		}
 		res->lhs = postfix_expression();
 		return res;
 	}
