@@ -87,3 +87,9 @@ try "int main(){
 	c = &b + 8;
 	return *c;
 }" 3
+try "int main(){
+	a = get_pointer();
+	*a = 5;
+	b = &a;
+	return **b;
+}" 5

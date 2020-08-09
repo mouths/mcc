@@ -264,6 +264,12 @@ static Num *postfix_expression(){
 	return res;
 }
 
+static Num *unary_expression();
+// cast_expression <- unary_expression
+static Num *cast_expression(){
+	return unary_expression();
+}
+
 // unary_expression <- unary-operator? postfix_expression
 // unary-operator <- '+' / '-' / '&' / '*'
 static Num *unary_expression(){
@@ -286,7 +292,7 @@ static Num *unary_expression(){
 				res = new_Num(DEREF);
 				break;
 		}
-		res->lhs = postfix_expression();
+		res->lhs = cast_expression();
 		return res;
 	}
 	res = postfix_expression();

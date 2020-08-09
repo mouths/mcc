@@ -6,6 +6,6 @@ int foo(){
 	return 0;
 }
 
-int get_pointer(){
+void *get_pointer(){
 	return malloc(sizeof(int));
 }
