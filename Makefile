@@ -3,6 +3,7 @@ OBJ = $(SRC:.c=.o)
 TARGET = mcc
 CC = gcc
 TEST = test.sh
+TESTDIR = ./test/
 CFLAGS = -MMD -MP
 
 .PHONY: all clean
@@ -19,4 +20,5 @@ $(TARGET):$(OBJ)
 	$(CC) $(CFLAGS) -c -o $@ $^
 
 clean:
-	rm -rdf $(TARGET) *.o *.out $(OUT) *.S *.dSYM/ *.d
+	rm -rdf $(TARGET) *.o $(OUT) *.d
+	rm -rdf $(TESTDIR)*.S $(TESTDIR)*.out $(TESTDIR)*.dSYM/ $(TESTDIR)*.o

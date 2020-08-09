@@ -191,12 +191,14 @@ static void print_num(Num *in){
 		printf("mov %%r%cx, (%%rbp, %%rcx, 8)\n", c);
 		printf("push %%r%cx\n", c);
 		return;
-	}else if(
-			in->type == ID
-			){
+	}else if(in->type == ID){
 		print_addr(in);
 		printf("pop %%rbx\n");
 		printf("mov (%%rbp, %%rbx, 8), %%rax\n");
+		printf("push %%rax\n");
+		return;
+	}else if(in->type == CALL){
+		printf("call _%s\n", in->name);
 		printf("push %%rax\n");
 		return;
 	}

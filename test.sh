@@ -1,8 +1,10 @@
 #!/bin/bash
 
+CC=gcc
 try(){
-	echo -e "$1" | ./mcc > ./out.S
-	clang -g -o ./out.out ./out.S
+	echo -e "$1" | ../mcc > ./out.S
+	${CC} -g -c ./out.S
+	${CC} -g -static -o ./out.out ./test.o ./out.o
 	./out.out
 	RES=`echo $?`
 	if [ "$RES" == "$2" ]; then
@@ -13,6 +15,10 @@ try(){
 		exit 1
 	fi
 }
+
+mkdir -p ./test
+cd ./test/
+${CC} -c -static ./test.c
 
 try "int main() {return 2;}" 2
 try "int main() {return 1+2+3;}" 6
@@ -67,3 +73,6 @@ try "int main(){
 	hoge %= 3;
 	return hoge;
 }" 2
+try "int main(){
+	return foo();
+}" 0

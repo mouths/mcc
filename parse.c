@@ -41,6 +41,7 @@ static Num *new_Num(Ntype t){
 	res->type = t;
 	res->lhs = res->rhs = NULL;
 	res->id = 0;
+	res->name = NULL;
 	return res;
 }
 
@@ -215,6 +216,9 @@ static Num *identifier(){
 			free(con->name);
 			free(con);
 		}
+		res->name = malloc(sizeof(char) * (i + 1));
+		strncpy(res->name, str_pn(input, pos), i);
+		res->name[i] = '\0';
 		pos += i;
 		Spacing();
 		return res;
@@ -243,11 +247,28 @@ static Num *primary_expression(){
 	return NULL;
 }
 
-// unary_expression <- unary-operator? primary_expression
+// postfix_expression <- primary_expression ('(' ')')?
+static Num *postfix_expression(){
+	Num *res = primary_expression();
+	if(!res)return res;
+	char c = str_getchar(input, pos);
+	if(c == '('){
+		pos++;
+		Spacing();
+		c = str_getchar(input, pos);
+		if(c != ')')error("postfix_expression:missing ')'");
+		pos++;
+		Spacing();
+		res->type = CALL;
+	}
+	return res;
+}
+
+// unary_expression <- unary-operator? postfix_expression
 // unary-operator <- '+' / '-'
 static Num *unary_expression(){
-	char c = str_getchar(input, pos);
 	Num *res;
+	char c = str_getchar(input, pos);
 	if(c == '+' || c == '-'){
 		pos++;
 		Spacing();
@@ -255,7 +276,7 @@ static Num *unary_expression(){
 		res->lhs = primary_expression();
 		return res;
 	}
-	res = primary_expression();
+	res = postfix_expression();
 	return res;
 }
 
