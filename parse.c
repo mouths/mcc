@@ -27,6 +27,13 @@ struct id_container{
 	int id;
 };
 
+static char *name_copy(int n){
+	char *res = malloc(sizeof(char) * (n + 1));
+	strncpy(res, str_pn(input, pos), n);
+	res[n] = '\0';
+	return res;
+}
+
 static void *error(char *msg){
 	if(msg == NULL)
 		fprintf(stderr, "parse error:%d\n%.10s\n", pos, str_pn(input, pos));
@@ -202,18 +209,14 @@ static Num *identifier(){
 	struct id_container *con, *tmp;
 	if(i > 0){
 		con = malloc(sizeof(struct id_container));
-		con->name = malloc(sizeof(char) * (i + 1));
-		strncpy(con->name, str_pn(input, pos), i);
-		con->name[i] = '\0';
+		con->name = name_copy(i);
 		res = new_Num(ID);
 		tmp = list_search(con, id_container_cmp, idlist);
 		if(tmp == NULL)error("undefined variable");
 		res->id = tmp->id;
 		free(con->name);
 		free(con);
-		res->name = malloc(sizeof(char) * (i + 1));
-		strncpy(res->name, str_pn(input, pos), i);
-		res->name[i] = '\0';
+		res->name = name_copy(i);
 		pos += i;
 		Spacing();
 		return res;
@@ -594,9 +597,7 @@ static bool declarator(){
 	if(id <= 0)return false;
 	struct id_container *con, *tmp;
 	con = malloc(sizeof(struct id_container));
-	con->name = malloc(sizeof(char) * (id + 1));
-	strncpy(con->name, str_pn(input, pos), id);
-	con->name[id] = '\0';
+	con->name = name_copy(id);
 	tmp = list_search(con, id_container_cmp, idlist);
 	if(tmp)error("redeclaration of variable");
 	list_append(con, idlist);
@@ -647,9 +648,7 @@ static Def *function_definition(){
 	Spacing();
 	int id = is_identifier();
 	if(id == 0)return NULL;
-	res->name = malloc(sizeof(char) * (id + 1));
-	strncpy(res->name, str_pn(input, pos), id);
-	res->name[id] = '\0';
+	res->name = name_copy(id);
 	pos += id;
 	Spacing();
 	c = str_pn(input, pos);
