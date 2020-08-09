@@ -273,7 +273,7 @@ static Num *unary_expression(){
 		pos++;
 		Spacing();
 		res = new_Num(c == '+' ? PLUS : MINUS);
-		res->lhs = primary_expression();
+		res->lhs = postfix_expression();
 		return res;
 	}
 	res = postfix_expression();
