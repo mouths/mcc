@@ -17,7 +17,7 @@ static void print_num(Num *in);
 static void print_addr(Num *in){
 	if(in->type == ID){
 		printf("mov $%d, %%rbx\n", -(in->id));
-		printf("lea (%%rbp, %%rbx, 8), %%rax\n", -(in->id));
+		printf("lea (%%rbp, %%rbx, 8), %%rax\n");
 		printf("push %%rax\n");
 	}else if(in->type == DEREF)
 		print_num(in->lhs);
