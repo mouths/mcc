@@ -207,15 +207,10 @@ static Num *identifier(){
 		con->name[i] = '\0';
 		res = new_Num(ID);
 		tmp = list_search(con, id_container_cmp, idlist);
-		if(tmp == NULL){
-			list_append(con, idlist);
-			con->id = list_len(idlist);
-			res->id = con->id;
-		}else{
-			res->id = tmp->id;
-			free(con->name);
-			free(con);
-		}
+		if(tmp == NULL)error("undefined variable");
+		res->id = tmp->id;
+		free(con->name);
+		free(con);
 		res->name = malloc(sizeof(char) * (i + 1));
 		strncpy(res->name, str_pn(input, pos), i);
 		res->name[i] = '\0';
@@ -533,10 +528,13 @@ static Stmt *expression_statement(){
 	return res;
 }
 
-// block_item <- statement
+static bool declaration();
+// block_item <- statement / declaration
 static Stmt *block_item(){
-	Stmt *res;
-	Stmt *tmp = statement();
+	Stmt *res, *tmp = NULL;
+	if(declaration())
+		tmp = new_Stmt(EXP);
+	if(!tmp)tmp = statement();
 	if(!tmp)return NULL;
 	res = new_Stmt(ITEM);
 	res->rhs = tmp;
@@ -562,7 +560,7 @@ static Stmt *compound_statement(){
 	res = new_Stmt(CPD);
 	res->rhs = block_item_list();
 	c = str_getchar(input, pos);
-	if(c != '}')error("compound-expression");
+	if(c != '}')error("compound-statement");
 	pos++;
 	Spacing();
 	return res;
@@ -577,12 +575,74 @@ static Stmt *statement(){
 	return NULL;
 }
 
+// type_specifier <- 'int'
+static int type_specifier(){
+	char *c = str_pn(input, pos);
+	if(strncmp(c, "int", 3) != 0)return 0;
+	if(nondigit_n(3))return 0;
+	return 3;
+}
+
+// direct_declarator <- identifier
+static int direct_declarator(){
+	return is_identifier();
+}
+
+// declarator <- direct_declarator
+static bool declarator(){
+	int id = direct_declarator();
+	if(id <= 0)return false;
+	struct id_container *con, *tmp;
+	con = malloc(sizeof(struct id_container));
+	con->name = malloc(sizeof(char) * (id + 1));
+	strncpy(con->name, str_pn(input, pos), id);
+	con->name[id] = '\0';
+	tmp = list_search(con, id_container_cmp, idlist);
+	if(tmp)error("redeclaration of variable");
+	list_append(con, idlist);
+	con->id = list_len(idlist);
+	pos += id;
+	Spacing();
+	return true;
+}
+
+// init_declarator <- declarator
+static bool init_declarator(){
+	return declarator();
+}
+
+// init_declarator_list <- init_declarator (',' init_declarator)*
+static bool init_declarator_list(){
+	if(!init_declarator())return false;
+	char c = str_getchar(input, pos);
+	while(c == ','){
+		pos++;
+		Spacing();
+		if(!init_declarator())error("init_declarator_list");
+		c = str_getchar(input, pos);
+	}
+	return true;
+}
+
+// declaration <- type_specifier init_declarator_list?
+static bool declaration(){
+	int n = type_specifier();
+	if(n <= 0)return false;
+	pos += n;
+	Spacing();
+	init_declarator_list();
+	char c = str_getchar(input, pos);
+	if(c != ';')error("declaration:missing semicoron");
+	pos++;
+	Spacing();
+	return true;
+}
+
 // function_definition <- type-specifier identifier '(' ')' compound_statement
-// type-specifier <- 'int'
 static Def *function_definition(){
 	char *c = str_pn(input, pos);
 	Def *res = new_Def(FUN);
-	if(strncmp(c, "int", 3) != 0 || keyword() < 0)return NULL;
+	if(type_specifier() != 3)return NULL;
 	pos += 3;
 	Spacing();
 	int id = is_identifier();

@@ -47,11 +47,13 @@ return 15;
 return 20;
 }}" 10
 try "int main() {
+int a;
 a = 5;
 a = a + a;;;;;;
 return a + 2;
 }" 12
 try "int main(){
+	int hoge, huga;
 	hoge = 8;
 	huga = 2;
 	hoge = hoge + huga;
@@ -59,35 +61,42 @@ try "int main(){
 }
 " 20
 try "int main(){
+	int hoge;
 	hoge = 3;
 	hoge += 2;
 	return hoge;
 }" 5
 try "int main(){
+	int hoge;
 	hoge = 11;
 	hoge /= 3;
 	return hoge;
 }" 3
 try "int main(){
+	int hoge;
 	hoge = 11;
 	hoge %= 3;
 	return hoge;
 }" 2
 try "int main(){
+	int foo;
 	return foo();
 }" 0
 try "int main(){
+	int a, b;
 	a = 3;
 	b = &a;
 	return *b;
 }" 3
 try "int main(){
+	int a, b, c;
 	a = 3;
 	b = 5;
 	c = &b + 8;
 	return *c;
 }" 3
 try "int main(){
+	int a, get_pointer, b;
 	a = get_pointer();
 	*a = 5;
 	b = &a;
