@@ -52,3 +52,18 @@ try "int main(){
 	return hoge * 2;
 }
 " 20
+try "int main(){
+	hoge = 3;
+	hoge += 2;
+	return hoge;
+}" 5
+try "int main(){
+	hoge = 11;
+	hoge /= 3;
+	return hoge;
+}" 3
+try "int main(){
+	hoge = 11;
+	hoge %= 3;
+	return hoge;
+}" 2

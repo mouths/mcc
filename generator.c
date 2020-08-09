@@ -134,6 +134,64 @@ static void print_num(Num *in){
 		printf("push %%rax\n");
 		return;
 	}else if(
+			in->type == MULAS ||
+			in->type == ADDAS ||
+			in->type == SUBAS ||
+			in->type == LSAS ||
+			in->type == RSAS ||
+			in->type == LAAS ||
+			in->type == LXAS ||
+			in->type == LOAS
+			){
+		char *code;
+		switch(in->type){
+			case  MULAS:
+				code = "mul";
+				break;
+			case  ADDAS:
+				code = "add";
+				break;
+			case  SUBAS:
+				code = "sub";
+				break;
+			case  LSAS:
+				code = "sal";
+				break;
+			case  RSAS:
+				code = "sar";
+				break;
+			case  LAAS:
+				code = "and";
+				break;
+			case  LXAS:
+				code = "xor";
+				break;
+			case  LOAS:
+				code = "or";
+				break;
+			default:;
+		}
+		print_addr(in->lhs);
+		print_num(in->rhs);
+		printf("pop %%rbx\n");
+		printf("pop %%rax\n");
+		printf("%s %%rbx, (%%rbp, %%rax, 8)\n", code);
+		printf("mov (%%rbp, %%rax, 8), %%rax\n");
+		printf("push %%rax\n");
+		return;
+	}else if(in->type == DIVAS || in->type == MODAS){
+		char c = (in->type == DIVAS ? 'a' : 'd');
+		print_addr(in->lhs);
+		print_num(in->rhs);
+		printf("pop %%rbx\n");
+		printf("pop %%rcx\n");
+		printf("mov $0, %%rdx\n");
+		printf("mov (%%rbp, %%rcx, 8), %%rax\n");
+		printf("div %%rbx\n");
+		printf("mov %%r%cx, (%%rbp, %%rcx, 8)\n", c);
+		printf("push %%r%cx\n", c);
+		return;
+	}else if(
 			in->type == ID
 			){
 		print_addr(in);

@@ -413,11 +413,11 @@ static Num *inclusive_or_expression(){
 static Num *assignment_expression(){
 	const struct oplist ops[11] = {
 		{"=", 1, AS},
-		{"*=", 2, TAS},
-		{"/=", 2, DAS},
-		{"%=", 2, MAS},
-		{"+=", 2, AAS},
-		{"-=", 2, SAS},
+		{"*=", 2, MULAS},
+		{"/=", 2, DIVAS},
+		{"%=", 2, MODAS},
+		{"+=", 2, ADDAS},
+		{"-=", 2, SUBAS},
 		{"<<=", 3, LSAS},
 		{">>=", 3, RSAS},
 		{"&=", 2, LAAS},
