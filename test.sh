@@ -102,3 +102,7 @@ try "int main(){
 	b = &a;
 	return **b;
 }" 5
+try "int main(int a){
+	a = 4;
+	return a;
+}" 4

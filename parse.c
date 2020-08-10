@@ -85,6 +85,11 @@ static void Spacing(){
 	}
 }
 
+static void Spacing_n(int n){
+	pos += n;
+	Spacing();
+}
+
 // nondigit <- [a-zA-Z_]
 static bool nondigit(){
 	char c = str_getchar(input, pos);
@@ -586,15 +591,72 @@ static int type_specifier(){
 	return 3;
 }
 
-// direct_declarator <- identifier
-static int direct_declarator(){
-	return is_identifier();
+// declaration_specifiers <- type_specifier
+static int declaration_specifiers(){
+	return type_specifier();
 }
 
-// declarator <- direct_declarator
-static bool declarator(){
-	int id = direct_declarator();
+// identifier_list <- identifier (',' identifier)*
+static bool identifier_list(){
+	int id = is_identifier();
 	if(id <= 0)return false;
+	struct id_container *con = malloc(sizeof(struct id_container));
+	con->name = name_copy(id);
+	if(list_search(con, id_container_cmp, idlist))
+		error("identifier_list:redeclaration variable");
+	list_append(con, idlist);
+	con->id = list_len(idlist);
+	Spacing_n(id);
+	char c = str_getchar(input, pos);
+	while(c == ','){
+		Spacing_n(1);
+		id = is_identifier();
+		if(id <= 0)error("identifier_list:missing identifier");
+		con = malloc(sizeof(struct id_container));
+		con->name = name_copy(id);
+		if(list_search(con, id_container_cmp, idlist))
+			error("identifier_list:redeclaration variable");
+		list_append(con, idlist);
+		con->id = list_len(idlist);
+		Spacing_n(id);
+		c = str_getchar(input, pos);
+	}
+	return true;
+}
+
+static char* declarator();
+// parameter_declaration <- declaration_specifiers declarator
+static bool parameter_declaration(){
+	int sp;
+	if((sp = declaration_specifiers()) <= 0)return false;
+	Spacing_n(sp);
+	char *tmp;
+	if((tmp = declarator()) == NULL)error("parameter_declaration:missing identifier");
+	free(tmp);
+	return true;
+}
+
+// parameter_list <- parameter_declaration (',' parameter_declaration)*
+static bool parameter_list(){
+	if(!parameter_declaration())return false;
+	char c = str_getchar(input, pos);
+	while(c == ','){
+		Spacing_n(1);
+		if(!parameter_declaration())error("parameter_list:missing identifier");
+		c = str_getchar(input, pos);
+	}
+	return true;
+}
+
+// parameter_type_list <- parameter_list
+static bool parameter_type_list(){
+	return parameter_list();
+}
+
+// direct_declarator <- identifier ('(' parameter_type__list? ')')?
+static char *direct_declarator(){
+	int id = is_identifier();
+	if(id <= 0)return NULL;
 	struct id_container *con, *tmp;
 	con = malloc(sizeof(struct id_container));
 	con->name = name_copy(id);
@@ -602,27 +664,42 @@ static bool declarator(){
 	if(tmp)error("redeclaration of variable");
 	list_append(con, idlist);
 	con->id = list_len(idlist);
-	pos += id;
-	Spacing();
-	return true;
+	char *name = name_copy(id);
+	Spacing_n(id);
+	char c = str_getchar(input, pos);
+	if(c == '('){
+		Spacing_n(1);
+		parameter_type_list();
+		c = str_getchar(input, pos);
+		if(c != ')')error("direct_declarator:miasing ')'");
+		Spacing_n(1);
+	}
+	return name;
+}
+
+// declarator <- direct_declarator
+static char *declarator(){
+	return direct_declarator();
 }
 
 // init_declarator <- declarator
-static bool init_declarator(){
+static char *init_declarator(){
 	return declarator();
 }
 
 // init_declarator_list <- init_declarator (',' init_declarator)*
-static bool init_declarator_list(){
-	if(!init_declarator())return false;
+static char *init_declarator_list(){
+	char *name, *tmp;
+	if(!(name = init_declarator()))return NULL;
 	char c = str_getchar(input, pos);
 	while(c == ','){
 		pos++;
 		Spacing();
-		if(!init_declarator())error("init_declarator_list");
+		if(!(tmp = init_declarator()))error("init_declarator_list");
+		free(tmp);
 		c = str_getchar(input, pos);
 	}
-	return true;
+	return name;
 }
 
 // declaration <- type_specifier init_declarator_list?
@@ -631,7 +708,7 @@ static bool declaration(){
 	if(n <= 0)return false;
 	pos += n;
 	Spacing();
-	init_declarator_list();
+	free(init_declarator_list());
 	char c = str_getchar(input, pos);
 	if(c != ';')error("declaration:missing semicoron");
 	pos++;
@@ -639,26 +716,17 @@ static bool declaration(){
 	return true;
 }
 
-// function_definition <- type-specifier identifier '(' ')' compound_statement
+// function_definition <- type-specifier declarator compound_statement
 static Def *function_definition(){
 	char *c = str_pn(input, pos);
 	Def *res = new_Def(FUN);
 	if(type_specifier() != 3)return NULL;
 	pos += 3;
 	Spacing();
-	int id = is_identifier();
-	if(id == 0)return NULL;
-	res->name = name_copy(id);
-	pos += id;
-	Spacing();
-	c = str_pn(input, pos);
-	if(*c != '(') return NULL;
-	pos++;
-	Spacing();
-	c = str_pn(input, pos);
-	if(*c != ')')return NULL;
-	pos++;
-	Spacing();
+
+	res->name = declarator();
+	if(!res->name)error("function_definition:missing identifier");
+
 	res->Schild = compound_statement();
 	res->idcount = list_len(idlist);
 	return res;
