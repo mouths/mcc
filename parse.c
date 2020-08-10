@@ -26,6 +26,7 @@ struct id_container{
 	char *name;
 	int id;
 	int ptr;
+	int size;
 };
 
 static struct id_container *new_container(){
@@ -33,6 +34,7 @@ static struct id_container *new_container(){
 	res->name = NULL;
 	res->id = 0;
 	res->ptr = 0;
+	res->size = 0;
 }
 
 static char *name_copy(int n){
@@ -66,6 +68,7 @@ static Num *new_Num(Ntype t){
 	res->id = 0;
 	res->name = NULL;
 	res->ptr = 0;
+	res->size = 0;
 	return res;
 }
 
@@ -219,6 +222,7 @@ static Num *constant(){
 			pos++;
 		}
 		Spacing();
+		res->size = INT_SIZE;
 		return res;
 	}
 	Spacing();
@@ -242,6 +246,7 @@ static Num *identifier(){
 		if(tmp == NULL)error("undefined variable");
 		res->id = tmp->id;
 		res->ptr = tmp->ptr;
+		res->size = tmp->size;
 		free(con->name);
 		free(con);
 		res->name = name_copy(i);
@@ -281,6 +286,7 @@ static Num *argument_expression_list(){
 		return NULL;
 	res = new_Num(ARG);
 	res->rhs = tmp;
+	res->size = tmp->size;
 	tmp = res;
 	char c = str_getchar(input, pos);
 	while(c == ','){
@@ -343,6 +349,7 @@ static Num *unary_expression(){
 			res->ptr = res->lhs->ptr - 1;
 		}else if(c == '&'){
 			res->ptr = res->lhs->ptr + 1;
+			res->size = PTR_SIZE;
 		}
 		return res;
 	}
@@ -373,6 +380,10 @@ static Num *multiplicative_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = unary_expression();
+		res->size = (
+				res->lhs->size > res->rhs->size
+				? res->lhs->size
+				: res->rhs->size);
 		c = str_getchar(input, pos);
 	}
 	Spacing();
@@ -393,6 +404,10 @@ static Num *additive_expression(){
 		res->rhs = multiplicative_expression();
 		res->ptr = (res->lhs->ptr > res->rhs->ptr ?
 				res->lhs->ptr : res->rhs->ptr);
+		res->size = (
+				res->lhs->size > res->rhs->size
+				? res->lhs->size
+				: res->rhs->size);
 		c = str_getchar(input, pos);
 	}
 	Spacing();
@@ -421,6 +436,7 @@ static Num *relational_expression(){
 		Spacing();
 		tmp->rhs = additive_expression();
 		res = tmp;
+		res->size = INT_SIZE;
 		c = str_getchar(input, pos);
 	}
 	return res;
@@ -440,6 +456,7 @@ static Num *equality_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = relational_expression();
+		res->size = INT_SIZE;
 		c = str_pn(input, pos);
 	}
 	return res;
@@ -458,6 +475,10 @@ static Num *and_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = equality_expression();
+		res->size = (
+				res->lhs->size > res->rhs->size
+				? res->lhs->size
+				: res->rhs->size);
 		c = str_getchar(input, pos);
 	}
 	return res;
@@ -476,6 +497,10 @@ static Num *exclusive_or_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = and_expression();
+		res->size = (
+				res->lhs->size > res->rhs->size
+				? res->lhs->size
+				: res->rhs->size);
 		c = str_getchar(input, pos);
 	}
 	return res;
@@ -494,6 +519,10 @@ static Num *inclusive_or_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = exclusive_or_expression();
+		res->size = (
+				res->lhs->size > res->rhs->size
+				? res->lhs->size
+				: res->rhs->size);
 		c = str_getchar(input, pos);
 	}
 	return res;
@@ -530,6 +559,7 @@ static Num *assignment_expression(){
 			tmp = new_Num(ops[i].type);
 			tmp->lhs = res;
 			res = tmp;
+			res->size = res->lhs->size;
 			if(!(res->rhs = assignment_expression()))
 				error("assignment_expression:rhs is NULL");
 			return res;
@@ -744,7 +774,8 @@ static char *declarator(){
 	con->ptr = ptr;
 	tmp = list_search(con, id_container_cmp, idlist);
 	if(tmp)error("redeclaration of variable");
-	con->id = list_map_sum(count_id_offset, idlist) + (con->ptr ? 8 : 4);
+	con->size = con->ptr ? PTR_SIZE : INT_SIZE;
+	con->id = list_map_sum(count_id_offset, idlist) + con->size;
 	list_append(con, idlist);
 	//con->id = list_len(idlist);
 	return name;

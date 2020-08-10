@@ -4,12 +4,31 @@
 #include "str.h"
 #include "parse.h"
 
+#define LHS 0
+#define RHS 1
+#define CENTER 2
+
 static void error(char *msg){
 	if(msg == NULL)
 		fprintf(stderr, "generator error\n");
 	else
 		fprintf(stderr, "generator error:%s\n", msg);
 	exit(1);
+}
+
+static char rsize(Num *in, int side){
+	if(side == LHS){
+		if(in->lhs->size == PTR_SIZE)return 'r';
+		return 'e';
+	}else if(side == RHS){
+		if(in->rhs->size == PTR_SIZE)return 'r';
+		return 'e';
+	}else if(side == CENTER){
+		if(in->size == PTR_SIZE)return 'r';
+		return 'e';
+	}
+	error("rsize:hand side error");
+	return 0;
 }
 
 static void print_num(Num *in);
@@ -58,7 +77,7 @@ static void print_num(Num *in){
 		print_num(in->rhs);
 		printf("pop %%rbx\n");
 		printf("pop %%rax\n");
-		printf("%s %%rbx, %%rax\n", code);
+		printf("%s %%%cbx, %%%cax\n", code, rsize(in, CENTER), rsize(in, CENTER));
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == ADD){
@@ -70,7 +89,7 @@ static void print_num(Num *in){
 			printf("imul $8, %%rbx\n");
 		else if(in->rhs->ptr > 0 && in->lhs->ptr == 0)
 			printf("imul $8, %%rax\n");
-		printf("add %%rbx, %%rax\n");
+		printf("add %%%cbx, %%%cax\n", rsize(in, CENTER), rsize(in, CENTER));
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == SUB){
@@ -97,7 +116,7 @@ static void print_num(Num *in){
 		printf("mov $0, %%rdx\n");
 		printf("pop %%rbx\n");
 		printf("pop %%rax\n");
-		printf("div %%rbx\n");
+		printf("div %%%cbx\n", rsize(in, RHS));
 		printf("push %%r%cx\n", in->type == DIV ? 'a' : 'd');
 		return;
 	}else if(in->type == PLUS || in->type == MINUS){
@@ -105,7 +124,7 @@ static void print_num(Num *in){
 		if(in->type == MINUS){
 			printf("pop %%rbx\n");
 			printf("mov $0, %%rax\n");
-			printf("sub %%rbx, %%rax\n");
+			printf("sub %%%cbx, %%%cax\n", rsize(in, CENTER), rsize(in, CENTER));
 			printf("push %%rax\n");
 		}
 		return;
@@ -124,12 +143,12 @@ static void print_num(Num *in){
 		switch(in->type){
 			case LES:
 			case LEQ:
-				printf("cmp %%rax, %%rbx\n");
+				printf("cmp %%%cax, %%%cbx\n", rsize(in, CENTER), rsize(in, CENTER));
 				break;
 			case GRT:
 			case GEQ:
 			default:
-				printf("cmp %%rbx, %%rax\n");
+				printf("cmp %%%cbx, %%%cax\n", rsize(in, CENTER), rsize(in, CENTER));
 				break;
 		}
 		switch(in->type){
@@ -159,7 +178,7 @@ static void print_num(Num *in){
 		print_num(in->rhs);
 		printf("pop %%rax\n");
 		printf("pop %%rbx\n");
-		printf("mov %%rax, (%%rbx)\n");
+		printf("mov %%%cax, (%%rbx)\n", rsize(in, CENTER));
 		printf("push %%rax\n");
 		return;
 	}else if(
@@ -204,8 +223,8 @@ static void print_num(Num *in){
 		print_num(in->rhs);
 		printf("pop %%rbx\n");
 		printf("pop %%rax\n");
-		printf("%s %%rbx, (%%rax)\n", code);
-		printf("mov (%%rax), %%rax\n");
+		printf("%s %%%cbx, (%%rax)\n", code, rsize(in, CENTER));
+		printf("mov (%%rax), %%%cax\n", rsize(in, CENTER));
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == DIVAS || in->type == MODAS){
@@ -215,15 +234,15 @@ static void print_num(Num *in){
 		printf("pop %%rbx\n");
 		printf("pop %%rcx\n");
 		printf("mov $0, %%rdx\n");
-		printf("mov (%%rcx), %%rax\n");
-		printf("div %%rbx\n");
-		printf("mov %%r%cx, (%%rcx)\n", c);
+		printf("mov (%%rcx), %%%cax\n", rsize(in, CENTER));
+		printf("div %%%cbx\n", rsize(in, LHS));
+		printf("mov %%%c%cx, (%%rcx)\n", rsize(in, CENTER), c);
 		printf("push %%r%cx\n", c);
 		return;
 	}else if(in->type == ID){
 		print_addr(in);
 		printf("pop %%rbx\n");
-		printf("mov (%%rbx), %%rax\n");
+		printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == CALL){
