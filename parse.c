@@ -321,10 +321,10 @@ static Num *cast_expression(){
 	return unary_expression();
 }
 
-// unary_expression <- unary-operator? postfix_expression
+// unary_expression <- 'sizeof' unary_expression / unary-operator? postfix_expression
 // unary-operator <- '+' / '-' / '&' / '*'
 static Num *unary_expression(){
-	Num *res;
+	Num *res, *tmp;
 	char c = str_getchar(input, pos);
 	if(c == '+' || c == '-' || c == '&' || c == '*'){
 		pos++;
@@ -351,6 +351,13 @@ static Num *unary_expression(){
 			res->ptr = res->lhs->ptr + 1;
 			res->size = PTR_SIZE;
 		}
+		return res;
+	}else if(strncmp(str_pn(input, pos), "sizeof", 6) == 0 && keyword() >= 0){
+		Spacing_n(6);
+		tmp = unary_expression();
+		res = new_Num(NUM);
+		res->i = tmp->size;
+		res->size = INT_SIZE;
 		return res;
 	}
 	res = postfix_expression();

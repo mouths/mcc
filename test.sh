@@ -127,3 +127,15 @@ try "int main(){
 #	int a;
 #	return &a + &a;
 #}" undefined
+try "int main(){
+	int a;
+	return sizeof a;
+}" 4
+try "int main(){
+	int a;
+	return sizeof &a;
+}" 8
+try "int main(){
+	int *a;
+	return sizeof a;
+}" 8
