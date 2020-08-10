@@ -122,3 +122,8 @@ try "int main(){
 	int b;
 	return &a - &b;
 }" 1
+# bad example
+#try "int main(){
+#	int a;
+#	return &a + &a;
+#}" undefined

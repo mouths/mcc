@@ -89,6 +89,8 @@ static void print_num(Num *in){
 			printf("imul $8, %%rbx\n");
 		else if(in->rhs->ptr > 0 && in->lhs->ptr == 0)
 			printf("imul $8, %%rax\n");
+		else if(in->lhs->ptr > 0 && in->rhs->ptr > 0)
+			error("ADD:adding between pointers is invalid");
 		printf("add %%%cbx, %%%cax\n", rsize(in, CENTER), rsize(in, CENTER));
 		printf("push %%rax\n");
 		return;
