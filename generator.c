@@ -31,7 +31,6 @@ static void print_num(Num *in){
 		printf("push $%d\n", in->i);
 		return;
 	}else if(
-			in->type == SUB ||
 			in->type == MUL ||
 			in->type == AND ||
 			in->type == XOR ||
@@ -72,6 +71,24 @@ static void print_num(Num *in){
 		else if(in->rhs->ptr > 0 && in->lhs->ptr == 0)
 			printf("imul $8, %%rax\n");
 		printf("add %%rbx, %%rax\n");
+		printf("push %%rax\n");
+		return;
+	}else if(in->type == SUB){
+		print_num(in->lhs);
+		print_num(in->rhs);
+		printf("pop %%rbx\n");
+		printf("pop %%rax\n");
+		if(in->lhs->ptr > 0){
+			if(in->rhs->ptr == 0)
+				printf("imul $8, %%rbx\n");
+		}else if(in->rhs->ptr > 0)
+			error("invalid operation \"int - pointer\"");
+		printf("sub %%rbx, %%rax\n");
+		if(in->lhs->ptr > 0 && in->rhs->ptr > 0){
+			printf("mov $0, %%rdx\n");
+			printf("mov $8, %%rcx\n");
+			printf("div %%rcx\n");
+		}
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == DIV || in->type == MOD){

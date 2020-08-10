@@ -117,3 +117,8 @@ try "int main(){
 	b = &a;
 	return *b;
 }" 2
+try "int main(){
+	int a;
+	int b;
+	return &a - &b;
+}" 1
