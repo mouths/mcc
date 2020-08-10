@@ -111,3 +111,9 @@ try "int main(){
 	print_nums(1, 2, 3, 4, 5, 6);
 	return 0;
 }" 0
+try "int main(){
+	int a, *b;
+	a = 2;
+	b = &a;
+	return *b;
+}" 2

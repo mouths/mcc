@@ -696,8 +696,18 @@ static char *direct_declarator(){
 	return name;
 }
 
-// declarator <- direct_declarator
+// pointer <- '*'+
+static void pointer(){
+	char c = str_getchar(input, pos);
+	while(c == '*'){
+		Spacing_n(1);
+		c = str_getchar(input, pos);
+	}
+}
+
+// declarator <- pointer? direct_declarator
 static char *declarator(){
+	pointer();
 	return direct_declarator();
 }
 
