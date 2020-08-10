@@ -17,7 +17,7 @@ static void print_num(Num *in);
 static void print_addr(Num *in){
 	if(in->type == ID){
 		printf("mov $%d, %%rbx\n", -(in->id));
-		printf("lea (%%rbp, %%rbx, 8), %%rax\n");
+		printf("lea (%%rbp, %%rbx), %%rax\n");
 		printf("push %%rax\n");
 	}else if(in->type == DEREF)
 		print_num(in->lhs);
@@ -31,7 +31,6 @@ static void print_num(Num *in){
 		printf("push $%d\n", in->i);
 		return;
 	}else if(
-			in->type == ADD ||
 			in->type == SUB ||
 			in->type == MUL ||
 			in->type == AND ||
@@ -40,9 +39,6 @@ static void print_num(Num *in){
 			){
 		char *code;
 		switch(in->type){
-			case ADD:
-				code = "add";
-				break;
 			case SUB:
 				code = "sub";
 				break;
@@ -64,6 +60,18 @@ static void print_num(Num *in){
 		printf("pop %%rbx\n");
 		printf("pop %%rax\n");
 		printf("%s %%rbx, %%rax\n", code);
+		printf("push %%rax\n");
+		return;
+	}else if(in->type == ADD){
+		print_num(in->lhs);
+		print_num(in->rhs);
+		printf("pop %%rbx\n");
+		printf("pop %%rax\n");
+		if(in->lhs->ptr > 0 && in->rhs->ptr == 0)
+			printf("imul $8, %%rbx\n");
+		else if(in->rhs->ptr > 0 && in->lhs->ptr == 0)
+			printf("imul $8, %%rax\n");
+		printf("add %%rbx, %%rax\n");
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == DIV || in->type == MOD){
@@ -269,7 +277,7 @@ void print_def(Def *in){
 		printf("push %%rbp\n");
 		printf("mov %%rsp, %%rbp\n");
 		if(in->idcount)
-			printf("sub $%d, %%rsp\n", in->idcount * 8);
+			printf("sub $%d, %%rsp\n", in->idcount);
 		print_stmt(in->Schild);
 		return;
 	}

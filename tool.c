@@ -58,6 +58,12 @@ void list_map(void (*operation) (void *), list *lst){
 	for(BODY *i = lst->body; i; i = i->next)operation(i->con);
 }
 
+int list_map_sum(int (*operation) (void *), list *lst){
+	int sum = 0;
+	for(BODY *i = lst->body; i; i = i->next)sum += operation(i->con);
+	return sum;
+}
+
 void *list_search(void * con, int (*cmp) (const void *, const void *), list *lst){
 	for(BODY *i = lst->body; i; i = i->next)
 		if(cmp(con, i->con) == 0)return i->con;

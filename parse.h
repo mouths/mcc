@@ -8,6 +8,7 @@ typedef struct Num{
 	struct Num *lhs, *rhs;
 	int id;
 	char *name;
+	int ptr;
 }Num;
 
 typedef enum{NONE, RET, EXP, CPD, ITEM} Stype;

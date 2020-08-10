@@ -25,12 +25,28 @@ struct keywords{
 struct id_container{
 	char *name;
 	int id;
+	int ptr;
 };
+
+static struct id_container *new_container(){
+	struct id_container *res = malloc(sizeof(struct id_container));
+	res->name = NULL;
+	res->id = 0;
+	res->ptr = 0;
+}
 
 static char *name_copy(int n){
 	char *res = malloc(sizeof(char) * (n + 1));
 	strncpy(res, str_pn(input, pos), n);
 	res[n] = '\0';
+	return res;
+}
+
+static char *name_dup(char *in){
+	int len = strlen(in);
+	char *res = malloc(sizeof(char) * (len + 1));
+	strncpy(res, in, len);
+	res[len] = '\0';
 	return res;
 }
 
@@ -49,6 +65,7 @@ static Num *new_Num(Ntype t){
 	res->lhs = res->rhs = NULL;
 	res->id = 0;
 	res->name = NULL;
+	res->ptr = 0;
 	return res;
 }
 
@@ -182,6 +199,11 @@ static int is_identifier(){
 	return res;
 }
 
+static int count_id_offset(void *in){
+	if(((struct id_container *)in)->ptr)return 8;
+	return 8;
+}
+
 //  constant <- digit+
 static Num *constant(){
 	char c = str_getchar(input, pos);
@@ -219,6 +241,7 @@ static Num *identifier(){
 		tmp = list_search(con, id_container_cmp, idlist);
 		if(tmp == NULL)error("undefined variable");
 		res->id = tmp->id;
+		res->ptr = tmp->ptr;
 		free(con->name);
 		free(con);
 		res->name = name_copy(i);
@@ -315,6 +338,12 @@ static Num *unary_expression(){
 				break;
 		}
 		res->lhs = cast_expression();
+		if(c == '*'){
+			if(res->lhs->ptr == 0)error("unary_expression:deref to non-pointer object");
+			res->ptr = res->lhs->ptr - 1;
+		}else if(c == '&'){
+			res->ptr = res->lhs->ptr + 1;
+		}
 		return res;
 	}
 	res = postfix_expression();
@@ -362,6 +391,8 @@ static Num *additive_expression(){
 		res = tmp;
 		Spacing();
 		res->rhs = multiplicative_expression();
+		res->ptr = (res->lhs->ptr > res->rhs->ptr ?
+				res->lhs->ptr : res->rhs->ptr);
 		c = str_getchar(input, pos);
 	}
 	Spacing();
@@ -615,6 +646,7 @@ static int declaration_specifiers(){
 	return type_specifier();
 }
 
+/*
 // identifier_list <- identifier (',' identifier)*
 static bool identifier_list(){
 	int id = is_identifier();
@@ -642,6 +674,7 @@ static bool identifier_list(){
 	}
 	return true;
 }
+*/
 
 static char* declarator();
 // parameter_declaration <- declaration_specifiers declarator
@@ -676,13 +709,6 @@ static bool parameter_type_list(){
 static char *direct_declarator(){
 	int id = is_identifier();
 	if(id <= 0)return NULL;
-	struct id_container *con, *tmp;
-	con = malloc(sizeof(struct id_container));
-	con->name = name_copy(id);
-	tmp = list_search(con, id_container_cmp, idlist);
-	if(tmp)error("redeclaration of variable");
-	list_append(con, idlist);
-	con->id = list_len(idlist);
 	char *name = name_copy(id);
 	Spacing_n(id);
 	char c = str_getchar(input, pos);
@@ -697,18 +723,31 @@ static char *direct_declarator(){
 }
 
 // pointer <- '*'+
-static void pointer(){
+static int pointer(){
 	char c = str_getchar(input, pos);
+	int count = 0;
 	while(c == '*'){
 		Spacing_n(1);
+		count++;
 		c = str_getchar(input, pos);
 	}
+	return count;
 }
 
 // declarator <- pointer? direct_declarator
 static char *declarator(){
-	pointer();
-	return direct_declarator();
+	int ptr = pointer();
+	char *name = direct_declarator();
+	struct id_container *con, *tmp;
+	con = malloc(sizeof(struct id_container));
+	con->name = name_dup(name);
+	con->ptr = ptr;
+	tmp = list_search(con, id_container_cmp, idlist);
+	if(tmp)error("redeclaration of variable");
+	con->id = list_map_sum(count_id_offset, idlist) + (con->ptr ? 8 : 4);
+	list_append(con, idlist);
+	//con->id = list_len(idlist);
+	return name;
 }
 
 // init_declarator <- declarator
@@ -757,7 +796,9 @@ static Def *function_definition(){
 	if(!res->name)error("function_definition:missing identifier");
 
 	res->Schild = compound_statement();
-	res->idcount = list_len(idlist);
+	// TODO
+	//res->idcount
+	res->idcount = list_map_sum(count_id_offset, idlist);
 	return res;
 }
 

@@ -83,20 +83,20 @@ try "int main(){
 	return foo();
 }" 0
 try "int main(){
-	int a, b;
+	int a, *b;
 	a = 3;
 	b = &a;
 	return *b;
 }" 3
 try "int main(){
-	int a, b, c;
+	int a, b, *c;
 	a = 3;
 	b = 5;
-	c = &b + 8;
+	c = &b + 1;
 	return *c;
 }" 3
 try "int main(){
-	int a, get_pointer, b;
+	int *a, get_pointer, **b;
 	a = get_pointer();
 	*a = 5;
 	b = &a;
