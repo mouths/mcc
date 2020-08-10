@@ -250,18 +250,37 @@ static Num *primary_expression(){
 	return NULL;
 }
 
-// postfix_expression <- primary_expression ('(' ')')?
+static Num *assignment_expression();
+// argument_expression_list <- assignment_expression (',' assignment_expression)*
+static Num *argument_expression_list(){
+	Num *res, *tmp;
+	if((tmp = assignment_expression()) == NULL)
+		return NULL;
+	res = new_Num(ARG);
+	res->rhs = tmp;
+	tmp = res;
+	char c = str_getchar(input, pos);
+	while(c == ','){
+		Spacing_n(1);
+		tmp = tmp->lhs = new_Num(ARG);
+		if((tmp->rhs = assignment_expression()) == NULL)
+			error("argument_expression_list:missing argument");
+		c = str_getchar(input, pos);
+	}
+	return res;
+}
+
+// postfix_expression <- primary_expression ('(' argument_expression_list? ')')?
 static Num *postfix_expression(){
 	Num *res = primary_expression();
 	if(!res)return res;
 	char c = str_getchar(input, pos);
 	if(c == '('){
-		pos++;
-		Spacing();
+		Spacing_n(1);
+		res->lhs = argument_expression_list();
 		c = str_getchar(input, pos);
 		if(c != ')')error("postfix_expression:missing ')'");
-		pos++;
-		Spacing();
+		Spacing_n(1);
 		res->type = CALL;
 	}
 	return res;

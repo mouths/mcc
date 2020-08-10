@@ -26,7 +26,7 @@ static void print_addr(Num *in){
 }
 
 static void print_num(Num *in){
-	if(in == NULL)error(NULL);
+	if(in == NULL)error("print_num:null");
 	if(in->type == NUM){
 		printf("push $%d\n", in->i);
 		return;
@@ -202,6 +202,7 @@ static void print_num(Num *in){
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == CALL){
+		if(in->lhs)print_num(in->lhs);
 		printf("call %s\n", in->name);
 		printf("push %%rax\n");
 		return;
@@ -214,9 +215,23 @@ static void print_num(Num *in){
 		printf("mov (%%rbx), %%rax\n");
 		printf("push %%rax\n");
 		return;
+	}else if(in->type == ARG){
+		const char *arglist[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+		int c = 0;
+		Num *tmp = in;
+		while(tmp){
+			print_num(tmp->rhs);
+			tmp = tmp->lhs;
+			c++;
+		}
+		for(; c; c--){
+			printf("pop %%%s\n", arglist[c - 1]);
+		}
+		return;
 	}
 
-	error(NULL);
+	fprintf(stderr, "%d\n", in->type);
+	error("print_num:undefined");
 }
 
 static void print_stmt(Stmt *in){

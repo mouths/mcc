@@ -106,3 +106,8 @@ try "int main(int a){
 	a = 4;
 	return a;
 }" 4
+try "int main(){
+	int print_nums;
+	print_nums(1, 2, 3, 4, 5, 6);
+	return 0;
+}" 0
