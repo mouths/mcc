@@ -16,6 +16,10 @@ static void error(char *msg){
 	exit(1);
 }
 
+static Type get_type(Num *in){
+	return in->vtype->type;
+}
+
 static char rsize(Num *in, int side){
 	if(side == LHS){
 		if(in->lhs->size == PTR_SIZE)return 'r';
@@ -35,7 +39,7 @@ static void print_num(Num *in);
 
 static void print_addr(Num *in){
 	if(in->type == ID){
-		printf("mov $%d, %%rbx\n", -(in->id));
+		printf("mov $%d, %%rbx\n", -(in->offset));
 		printf("lea (%%rbp, %%rbx), %%rax\n");
 		printf("push %%rax\n");
 	}else if(in->type == DEREF)
@@ -85,11 +89,14 @@ static void print_num(Num *in){
 		print_num(in->rhs);
 		printf("pop %%rbx\n");
 		printf("pop %%rax\n");
-		if(in->lhs->ptr > 0 && in->rhs->ptr == 0)
-			printf("imul $8, %%rbx\n");
-		else if(in->rhs->ptr > 0 && in->lhs->ptr == 0)
-			printf("imul $8, %%rax\n");
-		else if(in->lhs->ptr > 0 && in->rhs->ptr > 0)
+		if(get_type(in->lhs) == TPTR
+				&& get_type(in->rhs) != TPTR)
+			printf("imul $%d, %%rbx\n", in->lhs->vtype->ptr->size);
+		else if(get_type(in->rhs) == TPTR
+				&& get_type(in->lhs) != TPTR)
+			printf("imul $%d, %%rax\n", in->rhs->vtype->ptr->size);
+		else if(get_type(in->lhs) == TPTR
+				&& get_type(in->rhs) == TPTR)
 			error("ADD:adding between pointers is invalid");
 		printf("add %%%cbx, %%%cax\n", rsize(in, CENTER), rsize(in, CENTER));
 		printf("push %%rax\n");
@@ -99,15 +106,16 @@ static void print_num(Num *in){
 		print_num(in->rhs);
 		printf("pop %%rbx\n");
 		printf("pop %%rax\n");
-		if(in->lhs->ptr > 0){
-			if(in->rhs->ptr == 0)
-				printf("imul $8, %%rbx\n");
-		}else if(in->rhs->ptr > 0)
+		if(get_type(in->lhs) == TPTR){
+			if(get_type(in->rhs) != TPTR)
+				printf("imul $%d, %%rbx\n", in->lhs->vtype->ptr->size);
+		}else if(get_type(in->rhs) == TPTR)
 			error("invalid operation \"int - pointer\"");
 		printf("sub %%rbx, %%rax\n");
-		if(in->lhs->ptr > 0 && in->rhs->ptr > 0){
+		if(get_type(in->lhs) == TPTR
+				&& get_type(in->rhs) == TPTR){
 			printf("mov $0, %%rdx\n");
-			printf("mov $8, %%rcx\n");
+			printf("mov $%d, %%rcx\n", in->lhs->vtype->ptr->size);
 			printf("div %%rcx\n");
 		}
 		printf("push %%rax\n");
@@ -258,7 +266,7 @@ static void print_num(Num *in){
 	}else if(in->type == DEREF){
 		print_num(in->lhs);
 		printf("pop %%rbx\n");
-		printf("mov (%%rbx), %%rax\n");
+		printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == ARG){

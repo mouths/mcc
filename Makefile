@@ -4,7 +4,7 @@ TARGET = mcc
 CC = gcc
 TEST = test.sh
 TESTDIR = ./test/
-CFLAGS = -MMD -MP
+CFLAGS = -g -MMD -MP
 
 .PHONY: all clean test
 

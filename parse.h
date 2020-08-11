@@ -10,10 +10,11 @@ typedef struct Num{
 	Ntype type;
 	int i;
 	struct Num *lhs, *rhs;
-	int id;
+	int offset;
 	char *name;
-	int ptr;
+	//int ptr;
 	int size;
+	struct Typeinfo *vtype;
 }Num;
 
 typedef enum{NONE, RET, EXP, CPD, ITEM} Stype;
@@ -32,6 +33,14 @@ typedef struct Def{
 	char *name;
 	int idcount;
 }Def;
+
+typedef enum{TINT, TPTR} Type;
+
+typedef struct Typeinfo{
+	Type type;
+	struct Typeinfo *ptr;
+	int size;
+} Typeinfo;
 
 void *parse(str *s);
 #endif
