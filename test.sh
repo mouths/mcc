@@ -139,3 +139,28 @@ try "int main(){
 	int *a;
 	return sizeof a;
 }" 8
+try "int main(){
+	int a[5];
+	a[3] = 3;
+	return 3[a];
+}" 3
+try "int main(){
+	int a[2];
+	*a = 1;
+	*(a + 1) = 2;
+	int *p;
+	p = a;
+	return *p + *(p + 1);
+}" 3
+try "int main(){
+	int a[4];
+	return sizeof(a);
+}" 16
+try "int main(){
+	int a[4];
+	return sizeof(a + 1);
+}" 8
+try "int main(){
+	int a[3];
+	return sizeof(a[2]);
+}" 4

@@ -34,7 +34,7 @@ static struct id_container *new_container(){
 	res->name = NULL;
 	res->offset = 0;
 	res->type = NULL;
-	res->size = 0;
+	res->size = 1;
 }
 
 static char *name_copy(int n){
@@ -67,7 +67,7 @@ static Num *new_Num(Ntype t){
 	res->lhs = res->rhs = NULL;
 	res->offset = 0;
 	res->name = NULL;
-	res->size = 0;
+	res->size = 1;
 	res->vtype = NULL;
 	return res;
 }
@@ -93,7 +93,14 @@ static Typeinfo *new_Typeinfo(Type type){
 	Typeinfo *res = malloc(sizeof(Typeinfo));
 	res->type =type;
 	res->ptr = NULL;
-	res->size = 0;
+	switch(type){
+		case TINT:
+			res->size = INT_SIZE;
+			break;
+		case TPTR:
+		case TARRAY:
+			res->size = PTR_SIZE;
+	}
 	return res;
 }
 
@@ -211,7 +218,11 @@ static int is_identifier(){
 }
 
 static int count_id_offset(void *in){
-	return ((struct id_container *)in)->size;
+	struct id_container *con = in;
+	if(con->type->type == TARRAY)
+		return con->size * con->type->ptr->size;
+	else
+		return con->type->size;
 }
 
 //  constant <- digit+
@@ -230,7 +241,6 @@ static Num *constant(){
 		}
 		Spacing();
 		res->vtype = new_Typeinfo(TINT);
-		res->vtype->size = res->size = INT_SIZE;
 		return res;
 	}
 	Spacing();
@@ -255,9 +265,8 @@ static Num *identifier(){
 		res->offset = tmp->offset;
 		res->vtype = tmp->type;
 		res->size = tmp->size;
-		free(con->name);
+		res->name = con->name;
 		free(con);
-		res->name = name_copy(i);
 		Spacing_n(i);
 		return res;
 	}
@@ -306,9 +315,9 @@ static Num *argument_expression_list(){
 	return res;
 }
 
-// postfix_expression <- primary_expression ('(' argument_expression_list? ')')?
+// postfix_expression <- primary_expression ('(' argument_expression_list? ')' / '[' expression ']')?
 static Num *postfix_expression(){
-	Num *res = primary_expression();
+	Num *res = primary_expression(), *tmp;
 	if(!res)return res;
 	char c = str_getchar(input, pos);
 	if(c == '('){
@@ -318,6 +327,22 @@ static Num *postfix_expression(){
 		if(c != ')')error("postfix_expression:missing ')'");
 		Spacing_n(1);
 		res->type = CALL;
+	}else if(c == '['){
+		Spacing_n(1);
+		tmp = new_Num(ADD);
+		tmp->lhs = res;
+		tmp->rhs = expression();
+		if(tmp->lhs->vtype->type == TPTR
+				|| tmp->lhs->vtype->type == TARRAY)
+			tmp->vtype = tmp->lhs->vtype;
+		else
+			tmp->vtype = tmp->rhs->vtype;
+		res = new_Num(DEREF);
+		res->lhs = tmp;
+		res->vtype = tmp->vtype->ptr;
+		c = str_getchar(input, pos);
+		if(c != ']')error("postfix_expression:missing ']'");
+		Spacing_n(1);
 	}
 	return res;
 }
@@ -353,22 +378,24 @@ static Num *unary_expression(){
 		res->lhs = cast_expression();
 		res->vtype = res->lhs->vtype;
 		if(c == '*'){
-			if(res->lhs->vtype->type != TPTR)
+			if(!(res->lhs->vtype->type == TPTR
+						|| res->lhs->vtype->type == TARRAY))
 				error("unary_expression:deref to non-pointer object");
 			res->vtype = res->lhs->vtype->ptr;
-			res->size = res->lhs->vtype->ptr->size;
 		}else if(c == '&'){
 			res->vtype = new_Typeinfo(TPTR);
 			res->vtype->ptr = res->lhs->vtype;
-			res->size = PTR_SIZE;
 		}
 		return res;
 	}else if(strncmp(str_pn(input, pos), "sizeof", 6) == 0 && keyword() >= 0){
 		Spacing_n(6);
 		tmp = unary_expression();
 		res = new_Num(NUM);
-		res->i = tmp->size;
-		res->size = INT_SIZE;
+		if(tmp->vtype->type == TARRAY)
+			res->i = tmp->size * tmp->vtype->ptr->size;
+		else
+			res->i = tmp->vtype->size;
+		res->vtype = new_Typeinfo(TINT);
 		return res;
 	}
 	res = postfix_expression();
@@ -397,11 +424,10 @@ static Num *multiplicative_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = unary_expression();
-		if(res->lhs->size > res->rhs->size){
-			res->size = res->lhs->size;
+		if(res->lhs->vtype->size >
+				res->rhs->vtype->size){
 			res->vtype = res->lhs->vtype;
 		}else{
-			res->size = res->rhs->size;
 			res->vtype = res->rhs->vtype;
 		}
 		c = str_getchar(input, pos);
@@ -422,11 +448,20 @@ static Num *additive_expression(){
 		res = tmp;
 		Spacing();
 		res->rhs = multiplicative_expression();
-		if(res->lhs->size > res->rhs->size){
-			res->size = res->lhs->size;
+		if(res->lhs->vtype->type == TPTR ||
+				res->lhs->vtype->type == TARRAY){
+			res->vtype = new_Typeinfo(TPTR);
+			res->vtype->ptr = res->lhs->vtype->ptr;
+			//res->vtype = res->lhs->vtype;
+		}else if(res->rhs->vtype->type == TPTR ||
+				res->rhs->vtype->type == TARRAY){
+			res->vtype = new_Typeinfo(TPTR);
+			res->vtype->ptr = res->rhs->vtype->ptr;
+			//res->vtype = res->rhs->vtype;
+		}else if(res->lhs->vtype->size >
+				res->rhs->vtype->size){
 			res->vtype = res->lhs->vtype;
 		}else{
-			res->size = res->rhs->size;
 			res->vtype = res->rhs->vtype;
 		}
 		c = str_getchar(input, pos);
@@ -457,7 +492,7 @@ static Num *relational_expression(){
 		Spacing();
 		tmp->rhs = additive_expression();
 		res = tmp;
-		res->size = INT_SIZE;
+		res->vtype = new_Typeinfo(TINT);
 		c = str_getchar(input, pos);
 	}
 	return res;
@@ -477,7 +512,7 @@ static Num *equality_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = relational_expression();
-		res->size = INT_SIZE;
+		res->vtype = new_Typeinfo(TINT);
 		c = str_pn(input, pos);
 	}
 	return res;
@@ -496,10 +531,10 @@ static Num *and_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = equality_expression();
-		res->size = (
-				res->lhs->size > res->rhs->size
-				? res->lhs->size
-				: res->rhs->size);
+		if(res->lhs->vtype->size > res->rhs->vtype->size)
+			res->vtype = res->lhs->vtype;
+		else
+			res->vtype = res->rhs->vtype;
 		c = str_getchar(input, pos);
 	}
 	return res;
@@ -518,10 +553,10 @@ static Num *exclusive_or_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = and_expression();
-		res->size = (
-				res->lhs->size > res->rhs->size
-				? res->lhs->size
-				: res->rhs->size);
+		if(res->lhs->vtype->size > res->rhs->vtype->size)
+			res->vtype = res->lhs->vtype;
+		else
+			res->vtype = res->rhs->vtype;
 		c = str_getchar(input, pos);
 	}
 	return res;
@@ -540,10 +575,10 @@ static Num *inclusive_or_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = exclusive_or_expression();
-		res->size = (
-				res->lhs->size > res->rhs->size
-				? res->lhs->size
-				: res->rhs->size);
+		if(res->lhs->vtype->size > res->rhs->vtype->size)
+			res->vtype = res->lhs->vtype;
+		else
+			res->vtype = res->rhs->vtype;
 		c = str_getchar(input, pos);
 	}
 	return res;
@@ -580,7 +615,7 @@ static Num *assignment_expression(){
 			tmp = new_Num(ops[i].type);
 			tmp->lhs = res;
 			res = tmp;
-			res->size = res->lhs->size;
+			res->vtype = res->lhs->vtype;
 			if(!(res->rhs = assignment_expression()))
 				error("assignment_expression:rhs is NULL");
 			return res;
@@ -734,10 +769,9 @@ static char* declarator(Typeinfo *type);
 // parameter_declaration <- declaration_specifiers declarator
 static bool parameter_declaration(){
 	Typeinfo *type = declaration_specifiers();
-	if(!type)return NULL;
+	if(!type)return false;
 	char *tmp;
 	if((tmp = declarator(type)) == NULL)error("parameter_declaration:missing identifier");
-	free(tmp);
 	return true;
 }
 
@@ -758,7 +792,7 @@ static bool parameter_type_list(){
 	return parameter_list();
 }
 
-// direct_declarator <- identifier ('(' parameter_type__list? ')')?
+// direct_declarator <- identifier ('(' parameter_type__list? ')' / '[' digit+ ']')?
 static char *direct_declarator(Typeinfo *type){
 	int id = is_identifier();
 	if(id <= 0)return NULL;
@@ -767,18 +801,36 @@ static char *direct_declarator(Typeinfo *type){
 	if(list_search(con, id_container_cmp, idlist))
 		error("redeclaration");
 	con->type = type;
-	con->size = type->size;
-	con->offset = list_map_sum(count_id_offset, idlist) + con->size;
-	list_append(con, idlist);
 	Spacing_n(id);
 	char c = str_getchar(input, pos);
 	if(c == '('){
 		Spacing_n(1);
 		parameter_type_list();
 		c = str_getchar(input, pos);
-		if(c != ')')error("direct_declarator:miasing ')'");
+		if(c != ')')error("direct_declarator:missing ')'");
 		Spacing_n(1);
+	}else if(c == '['){
+		Spacing_n(1);
+		int i = 0;
+		while(digit()){
+			c = str_getchar(input, pos);
+			i = i * 10 + c - '0';
+			pos++;
+		}
+		c = str_getchar(input, pos);
+		if(c != ']')error("direct_declarator:missing ']'");
+		Spacing_n(1);
+		Typeinfo *tmp = new_Typeinfo(TARRAY);
+		tmp->ptr = con->type;
+		tmp->size = PTR_SIZE;
+		con->size = i;
+		con->type = tmp;
+		int offset = list_map_sum(count_id_offset, idlist);
+		con->offset = offset + con->size * con->type->ptr->size;
 	}
+	if(con->offset == 0)
+		con->offset = list_map_sum(count_id_offset, idlist) + con->type->size;
+	list_append(con, idlist);
 	return con->name;
 }
 
@@ -845,8 +897,6 @@ static Def *function_definition(){
 	if(!res->name)error("function_definition:missing identifier");
 
 	res->Schild = compound_statement();
-	// TODO
-	//res->idcount
 	res->idcount = list_map_sum(count_id_offset, idlist);
 	return res;
 }

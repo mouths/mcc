@@ -34,7 +34,7 @@ typedef struct Def{
 	int idcount;
 }Def;
 
-typedef enum{TINT, TPTR} Type;
+typedef enum{TINT, TPTR, TARRAY} Type;
 
 typedef struct Typeinfo{
 	Type type;

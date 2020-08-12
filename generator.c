@@ -22,13 +22,13 @@ static Type get_type(Num *in){
 
 static char rsize(Num *in, int side){
 	if(side == LHS){
-		if(in->lhs->size == PTR_SIZE)return 'r';
+		if(in->lhs->vtype->size == PTR_SIZE)return 'r';
 		return 'e';
 	}else if(side == RHS){
-		if(in->rhs->size == PTR_SIZE)return 'r';
+		if(in->rhs->vtype->size == PTR_SIZE)return 'r';
 		return 'e';
 	}else if(side == CENTER){
-		if(in->size == PTR_SIZE)return 'r';
+		if(in->vtype->size == PTR_SIZE)return 'r';
 		return 'e';
 	}
 	error("rsize:hand side error");
@@ -89,14 +89,26 @@ static void print_num(Num *in){
 		print_num(in->rhs);
 		printf("pop %%rbx\n");
 		printf("pop %%rax\n");
-		if(get_type(in->lhs) == TPTR
-				&& get_type(in->rhs) != TPTR)
+		if((
+					get_type(in->lhs) == TPTR ||
+					get_type(in->lhs) == TARRAY)
+				&& !(
+					get_type(in->rhs) == TPTR ||
+					get_type(in->rhs) == TARRAY))
 			printf("imul $%d, %%rbx\n", in->lhs->vtype->ptr->size);
-		else if(get_type(in->rhs) == TPTR
-				&& get_type(in->lhs) != TPTR)
+		else if((
+					get_type(in->rhs) == TPTR ||
+					get_type(in->rhs) == TARRAY)
+				&& !(
+					get_type(in->lhs) == TPTR ||
+					get_type(in->lhs) == TARRAY))
 			printf("imul $%d, %%rax\n", in->rhs->vtype->ptr->size);
-		else if(get_type(in->lhs) == TPTR
-				&& get_type(in->rhs) == TPTR)
+		else if((
+					get_type(in->lhs) == TPTR ||
+					get_type(in->lhs) == TARRAY)
+				&& (
+					get_type(in->rhs) == TPTR ||
+					get_type(in->rhs) == TARRAY))
 			error("ADD:adding between pointers is invalid");
 		printf("add %%%cbx, %%%cax\n", rsize(in, CENTER), rsize(in, CENTER));
 		printf("push %%rax\n");
@@ -251,9 +263,11 @@ static void print_num(Num *in){
 		return;
 	}else if(in->type == ID){
 		print_addr(in);
-		printf("pop %%rbx\n");
-		printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
-		printf("push %%rax\n");
+		if(get_type(in) != TARRAY){
+			printf("pop %%rbx\n");
+			printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
+			printf("push %%rax\n");
+		}
 		return;
 	}else if(in->type == CALL){
 		if(in->lhs)print_num(in->lhs);
