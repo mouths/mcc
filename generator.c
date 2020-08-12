@@ -42,6 +42,9 @@ static void print_addr(Num *in){
 		printf("mov $%d, %%rbx\n", -(in->offset));
 		printf("lea (%%rbp, %%rbx), %%rax\n");
 		printf("push %%rax\n");
+	}else if(in->type == GVAR){
+		printf("lea %s(%%rip), %%rax\n", in->name);
+		printf("push %%rax\n");
 	}else if(in->type == DEREF)
 		print_num(in->lhs);
 	else
@@ -296,6 +299,12 @@ static void print_num(Num *in){
 			printf("pop %%%s\n", arglist[c - 1]);
 		}
 		return;
+	}else if(in->type == GVAR){
+		print_addr(in);
+		printf("pop %%rbx\n");
+		printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
+		printf("push %%rax\n");
+		return;
 	}
 
 	fprintf(stderr, "%d\n", in->type);
@@ -332,6 +341,7 @@ static void print_stmt(Stmt *in){
 void print_def(Def *in){
 	if(in == NULL)error("print_def:NULL");
 	if(in->type == FUN){
+		printf(".text\n");
 		printf(".globl %s\n", in->name);
 		printf("%s:\n", in->name);
 		printf("push %%rbp\n");
@@ -339,6 +349,13 @@ void print_def(Def *in){
 		if(in->idcount)
 			printf("sub $%d, %%rsp\n", in->idcount);
 		print_stmt(in->Schild);
+		if(in->next)print_def(in->next);
+		return;
+	}else if(in->type == GVDEF){
+		printf(".data\n");
+		printf("%s:\n", in->name);
+		printf(".zero %d\n", in->idcount);
+		if(in->next)print_def(in->next);
 		return;
 	}
 	error("print_def");
@@ -349,6 +366,5 @@ void generator(void *in){
 		fprintf(stderr, "generator error\n");
 		exit(1);
 	}
-	printf(".globl main\n");
 	print_def(in);
 }

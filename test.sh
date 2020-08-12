@@ -164,3 +164,9 @@ try "int main(){
 	int a[3];
 	return sizeof(a[2]);
 }" 4
+try "
+int a;
+int main(){
+	a = 3;
+	return a;
+}" 3

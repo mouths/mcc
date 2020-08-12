@@ -285,17 +285,27 @@ static Num *identifier(){
 		con->name = name_copy(i);
 		res = new_Num(ID);
 		tmp = list_search(con, id_container_cmp, idlist);
-		if(tmp == NULL){
-			list_map(print_container, idlist);
-			error("undefined variable");
+		if(tmp){
+			res->offset = tmp->offset;
+			res->vtype = tmp->type;
+			res->size = tmp->size;
+			res->name = con->name;
+			free(con);
+			Spacing_n(i);
+			return res;
 		}
-		res->offset = tmp->offset;
-		res->vtype = tmp->type;
-		res->size = tmp->size;
-		res->name = con->name;
-		free(con);
-		Spacing_n(i);
-		return res;
+		tmp = list_search(con, id_container_cmp, gidlist);
+		if(tmp){
+			res->type = GVAR;
+			res->name = con->name;
+			res->vtype = tmp->type;
+			res->size = tmp->size;
+			free(con);
+			Spacing_n(i);
+			return res;
+		}
+		list_map(print_container, gidlist);
+		error("identifier:undefined variable");
 	}
 	return NULL;
 }
@@ -987,6 +997,7 @@ static Decs *declaration(){
 		pos = p;
 		return NULL;
 	}
+	Spacing_n(1);
 	return res;
 }
 
@@ -1037,6 +1048,57 @@ static Def *function_definition(){
 	return res;
 }
 
+static Def *global_variable_assign(Decs *in){
+	static Typeinfo *type;
+	static Def *res;
+	if(in->type == DEC_DEC){
+		type = NULL;
+		res = NULL;
+		global_variable_assign(in->lhs);
+		if(in->rhs)global_variable_assign(in->rhs);
+	}else if(in->type == DEC_TYPE){
+		type = new_Typeinfo(TINT);
+	}else if(in->type == DEC_DECTOR){
+		if(in->lhs)global_variable_assign(in->lhs);
+		global_variable_assign(in->rhs);
+	}else if(in->type == DEC_VAR){
+		struct id_container *con = new_container();
+		con->name = in->name;
+		if(list_search(con, id_container_cmp, gidlist))
+			error("global_variable_assign:redeclaration");
+		con->type = type;
+		list_append(con, gidlist);
+		res = new_Def(GVDEF);
+		res->name = in->name;
+		res->idcount = type->size;
+	}else{
+		fprintf(stderr, "dec no:%d\n", in->type);
+		error("global_variable_assign:undefined");
+	}
+	return res;
+}
+
+//external_declaration <- declaration / function_definition
+static Def *external_declaration(){
+	Def *res = NULL;
+	Decs *dec = declaration();
+	if(dec){
+		res = global_variable_assign(dec);
+		return res;
+	}
+	res = function_definition();
+	return res;
+}
+
+// translation_unit <- external_declaration+;
+static Def *translation_unit(){
+	Def *res = external_declaration(), *tmp;
+	if(!res)return NULL;
+	tmp = res;
+	while((tmp->next = external_declaration()))
+		tmp = tmp->next;
+	return res;
+}
 
 void *parse(str *s){
 	input = s;
@@ -1044,5 +1106,5 @@ void *parse(str *s){
 	idlist = list_empty();
 	gidlist = list_empty();
 	Spacing();
-	return function_definition();
+	return translation_unit();
 }
