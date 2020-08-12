@@ -128,7 +128,7 @@ static Typeinfo *new_Typeinfo(Type type){
 	return res;
 }
 
-static void Spacing(){
+static void consume_whitespace(){
 	char c;
 	while((c = str_getchar(input, pos))){
 		if(
@@ -144,9 +144,9 @@ static void Spacing(){
 	}
 }
 
-static void Spacing_n(int n){
+static void Spacing(int n){
 	pos += n;
-	Spacing();
+	consume_whitespace();
 }
 
 // nondigit <- [a-zA-Z_]
@@ -263,11 +263,10 @@ static Num *constant(){
 			res->i = res->i * 10 + c - '0';
 			pos++;
 		}
-		Spacing();
+		Spacing(0);
 		res->vtype = new_Typeinfo(TINT);
 		return res;
 	}
-	Spacing();
 	return NULL;
 }
 
@@ -291,7 +290,7 @@ static Num *identifier(){
 			res->size = tmp->size;
 			res->name = con->name;
 			free(con);
-			Spacing_n(i);
+			Spacing(i);
 			return res;
 		}
 		tmp = list_search(con, id_container_cmp, gidlist);
@@ -301,7 +300,7 @@ static Num *identifier(){
 			res->vtype = tmp->type;
 			res->size = tmp->size;
 			free(con);
-			Spacing_n(i);
+			Spacing(i);
 			return res;
 		}
 		list_map(print_container, gidlist);
@@ -318,14 +317,12 @@ static Num *primary_expression(){
 	if((res = identifier()))return res;
 	char c = str_getchar(input, pos);
 	if(c == '('){
-		pos++;
-		Spacing();
+		Spacing(1);
 		res = expression();
 		if(res == NULL)error("primary_expression:( expression )");
 		c = str_getchar(input, pos);
 		if(c != ')')error("primary_expression:missing )");
-		pos++;
-		Spacing();
+		Spacing(1);
 		return res;
 	}
 	return NULL;
@@ -343,7 +340,7 @@ static Num *argument_expression_list(){
 	tmp = res;
 	char c = str_getchar(input, pos);
 	while(c == ','){
-		Spacing_n(1);
+		Spacing(1);
 		tmp = tmp->lhs = new_Num(ARG);
 		if((tmp->rhs = assignment_expression()) == NULL)
 			error("argument_expression_list:missing argument");
@@ -358,14 +355,14 @@ static Num *postfix_expression(){
 	if(!res)return res;
 	char c = str_getchar(input, pos);
 	if(c == '('){
-		Spacing_n(1);
+		Spacing(1);
 		res->lhs = argument_expression_list();
 		c = str_getchar(input, pos);
 		if(c != ')')error("postfix_expression:missing ')'");
-		Spacing_n(1);
+		Spacing(1);
 		res->type = CALL;
 	}else if(c == '['){
-		Spacing_n(1);
+		Spacing(1);
 		tmp = new_Num(ADD);
 		tmp->lhs = res;
 		tmp->rhs = expression();
@@ -379,7 +376,7 @@ static Num *postfix_expression(){
 		res->vtype = tmp->vtype->ptr;
 		c = str_getchar(input, pos);
 		if(c != ']')error("postfix_expression:missing ']'");
-		Spacing_n(1);
+		Spacing(1);
 	}
 	return res;
 }
@@ -396,8 +393,7 @@ static Num *unary_expression(){
 	Num *res, *tmp;
 	char c = str_getchar(input, pos);
 	if(c == '+' || c == '-' || c == '&' || c == '*'){
-		pos++;
-		Spacing();
+		Spacing(1);
 		switch(c){
 			case '+':
 				res = new_Num(PLUS);
@@ -425,7 +421,7 @@ static Num *unary_expression(){
 		}
 		return res;
 	}else if(strncmp(str_pn(input, pos), "sizeof", 6) == 0 && keyword() >= 0){
-		Spacing_n(6);
+		Spacing(6);
 		tmp = unary_expression();
 		res = new_Num(NUM);
 		if(tmp->vtype->type == TARRAY)
@@ -457,7 +453,7 @@ static Num *multiplicative_expression(){
 				tmp->type = MOD;
 				break;
 		}
-		Spacing_n(1);
+		Spacing(1);
 		tmp->lhs = res;
 		res = tmp;
 		res->rhs = unary_expression();
@@ -469,7 +465,7 @@ static Num *multiplicative_expression(){
 		}
 		c = str_getchar(input, pos);
 	}
-	Spacing();
+	Spacing(0);
 	return res;
 }
 
@@ -480,10 +476,9 @@ static Num *additive_expression(){
 	char c = str_getchar(input, pos);
 	while(c == '+' || c == '-'){
 		Num *tmp = new_Num(c == '+' ? ADD : SUB);
-		pos++;
 		tmp->lhs = res;
 		res = tmp;
-		Spacing();
+		Spacing(1);
 		res->rhs = multiplicative_expression();
 		if(res->lhs->vtype->type == TPTR ||
 				res->lhs->vtype->type == TARRAY){
@@ -503,7 +498,7 @@ static Num *additive_expression(){
 		}
 		c = str_getchar(input, pos);
 	}
-	Spacing();
+	Spacing(0);
 	return res;
 }
 
@@ -526,7 +521,7 @@ static Num *relational_expression(){
 			tmp->type = (tmp->type == LES ? LEQ : GEQ);
 			pos++;
 		}
-		Spacing();
+		Spacing(0);
 		tmp->rhs = additive_expression();
 		res = tmp;
 		res->vtype = new_Typeinfo(TINT);
@@ -542,8 +537,7 @@ static Num *equality_expression(){
 	Num *tmp;
 	char *c = str_pn(input, pos);
 	while(strncmp("==", c, 2) == 0 || strncmp(c, "!=", 2) == 0){
-		pos += 2;
-		Spacing();
+		Spacing(2);
 		if(*c == '!')tmp = new_Num(NEQ);
 		else tmp = new_Num(EQ);
 		tmp->lhs = res;
@@ -562,8 +556,7 @@ static Num *and_expression(){
 	Num *tmp;
 	char c = str_getchar(input, pos);
 	while(c == '&'){
-		pos++;
-		Spacing();
+		Spacing(1);
 		tmp = new_Num(AND);
 		tmp->lhs = res;
 		res = tmp;
@@ -584,8 +577,7 @@ static Num *exclusive_or_expression(){
 	Num *tmp;
 	char c = str_getchar(input, pos);
 	while(c == '^'){
-		pos++;
-		Spacing();
+		Spacing(1);
 		tmp = new_Num(XOR);
 		tmp->lhs = res;
 		res = tmp;
@@ -606,8 +598,7 @@ static Num *inclusive_or_expression(){
 	Num *tmp;
 	char c = str_getchar(input, pos);
 	while(c == '|'){
-		pos++;
-		Spacing();
+		Spacing(1);
 		tmp = new_Num(OR);
 		tmp->lhs = res;
 		res = tmp;
@@ -647,8 +638,7 @@ static Num *assignment_expression(){
 	for(int i = 0; i < 11; i++){
 		if(i == 0 && strncmp(c, "==", 2) == 0)continue;
 		if(strncmp(c, ops[i].op, ops[i].len) == 0){
-			pos += ops[i].len;
-			Spacing();
+			Spacing(ops[i].len);
 			tmp = new_Num(ops[i].type);
 			tmp->lhs = res;
 			res = tmp;
@@ -673,16 +663,14 @@ static Stmt *jump_statement(){
 	char *c = str_pn(input, pos);
 	Stmt *res;
 	if(strncmp(c, "return", 6) == 0){
-		pos += 6;
-		Spacing();
+		Spacing(6);
 		res = new_Stmt(RET);
 		res->Nchild = expression();
 		c = str_pn(input, pos);
 		if(*c != ';'){
 			error("jump-statement: no semicoron");
 		}
-		pos++;
-		Spacing();
+		Spacing(1);
 		return res;
 	}
 	return NULL;
@@ -704,8 +692,7 @@ static Stmt *expression_statement(){
 	}
 	res = new_Stmt(EXP);
 	res->Nchild = tmp;
-	pos++;
-	Spacing();
+	Spacing(1);
 	return res;
 }
 
@@ -783,14 +770,12 @@ static Stmt *compound_statement(){
 	char c = str_getchar(input, pos);
 	Stmt *res;
 	if(c != '{')return NULL;
-	pos++;
-	Spacing();
+	Spacing(1);
 	res = new_Stmt(CPD);
 	res->rhs = block_item_list();
 	c = str_getchar(input, pos);
 	if(c != '}')error("compound-statement");
-	pos++;
-	Spacing();
+	Spacing(1);
 	return res;
 }
 
@@ -810,7 +795,7 @@ static Decs *type_specifier(){
 	if(nondigit_n(3))return NULL;
 	Decs *res = new_Decs(DEC_TYPE);
 	res->name = name_copy(3);
-	Spacing_n(3);
+	Spacing(3);
 	return res;
 }
 
@@ -830,10 +815,10 @@ static bool identifier_list(){
 		error("identifier_list:redeclaration variable");
 	list_append(con, idlist);
 	con->id = list_len(idlist);
-	Spacing_n(id);
+	Spacing(id);
 	char c = str_getchar(input, pos);
 	while(c == ','){
-		Spacing_n(1);
+		Spacing(1);
 		id = is_identifier();
 		if(id <= 0)error("identifier_list:missing identifier");
 		con = malloc(sizeof(struct id_container));
@@ -842,7 +827,7 @@ static bool identifier_list(){
 			error("identifier_list:redeclaration variable");
 		list_append(con, idlist);
 		con->id = list_len(idlist);
-		Spacing_n(id);
+		Spacing(id);
 		c = str_getchar(input, pos);
 	}
 	return true;
@@ -897,10 +882,10 @@ static Decs *direct_declarator(){
 	if(id == 0)return NULL;
 	Decs *res = new_Decs(DEC_VAR);
 	res->name = name_copy(id);
-	Spacing_n(id);
+	Spacing(id);
 	p = pos;
 	if(str_getchar(input, pos) == '('){
-		Spacing_n(1);
+		Spacing(1);
 		res->type = DEC_FUN;
 		res->lhs = parameter_type_list();
 		if(str_getchar(input, pos) != ')'){
@@ -908,23 +893,23 @@ static Decs *direct_declarator(){
 			res->lhs = NULL;
 			pos = p;
 		}
-		Spacing_n(1);
+		Spacing(1);
 		return res;
 	}else if(str_getchar(input, pos) == '['){
-		Spacing_n(1);
+		Spacing(1);
 		int i = 0;
 		while(digit()){
 			i = i * 10 + str_getchar(input, pos) - '0';
 			pos++;
 		}
-		Spacing();
+		Spacing(0);
 		if(str_getchar(input, pos) != ']'){
 			pos = p;
 			return res;
 		}
 		res->type = DEC_ARRAY;
 		res->size = i;
-		Spacing_n(1);
+		Spacing(1);
 	}
 	return res;
 }
@@ -937,7 +922,7 @@ static Decs *pointer(){
 		tmp = new_Decs(DEC_PTR);
 		tmp->next = res;
 		res = tmp;
-		Spacing_n(1);
+		Spacing(1);
 	}
 	return res;
 }
@@ -971,7 +956,7 @@ static Decs *init_declarator_list(){
 	p = pos;
 	tmp = res;
 	while(str_getchar(input, pos) == ','){
-		Spacing_n(1);
+		Spacing(1);
 		tmp->next = init_declarator();
 		if(tmp->next == NULL){
 			pos = p;
@@ -997,7 +982,7 @@ static Decs *declaration(){
 		pos = p;
 		return NULL;
 	}
-	Spacing_n(1);
+	Spacing(1);
 	return res;
 }
 
@@ -1105,6 +1090,6 @@ void *parse(str *s){
 	pos = 0;
 	idlist = list_empty();
 	gidlist = list_empty();
-	Spacing();
+	Spacing(0);
 	return translation_unit();
 }
