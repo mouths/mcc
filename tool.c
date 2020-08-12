@@ -54,7 +54,7 @@ list *list_concat(list *a, list *b){
 	return a;
 }
 
-void list_map(void (*operation) (void *), list *lst){
+void list_map(void (operation) (void *), list *lst){
 	for(BODY *i = lst->body; i; i = i->next)operation(i->con);
 }
 
