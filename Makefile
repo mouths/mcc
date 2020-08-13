@@ -17,7 +17,9 @@ $(TARGET):$(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
 
 .c.o:
-	$(CC) $(CFLAGS) -c -o $@ $^
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+-include *.d
 
 clean:
 	rm -rdf $(TARGET) *.o $(OUT) *.d
