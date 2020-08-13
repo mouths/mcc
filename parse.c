@@ -184,6 +184,12 @@ static bool digit_n(int n){
 	return ('0' <= c && c <= '9');
 }
 
+static bool try_input(char *in){
+	int len = strlen(in);
+	return strncmp(in, str_pn(input, pos), len) == 0 &&
+		!nondigit_n(len) && !digit_n(len);
+}
+
 static int keyword(){
 	const struct keywords keys[44] = {
 		{"auto", 4},
@@ -852,8 +858,7 @@ static Stmt *compound_statement(){
 // selection_statement <- 'if' '(' expression ')' statement ('else' statement)?
 static Stmt *selection_statement(){
 	Stmt *res = NULL;
-	if(strncmp("if", str_pn(input, pos), 2) == 0 &&
-			!nondigit_n(2) && !digit_n(2)){
+	if(try_input("if")){
 		Spacing(2);
 		if(str_getchar(input, pos) != '(')
 			error("selection_statement:missing '('");
@@ -865,8 +870,7 @@ static Stmt *selection_statement(){
 			error("selection_statement:missing ')'");
 		Spacing(1);
 		res->lhs = statement();
-		if(strncmp("else", str_pn(input, pos), 4) == 0 &&
-				!nondigit_n(4) && !digit_n(4)){
+		if(try_input("else")){
 			Spacing(4);
 			res->rhs = statement();
 		}
@@ -879,8 +883,7 @@ static Stmt *selection_statement(){
 //		'do' statement 'while' '(' expression ')' ';'
 static Stmt *iteration_statement(){
 	Stmt *res = NULL;
-	if(strncmp(str_pn(input, pos), "while", 5) == 0 &&
-			!digit_n(5) && !nondigit_n(5)){
+	if(try_input("while")){
 		Spacing(5);
 		res = new_Stmt(WHILE);
 		if(str_getchar(input, pos) != '(')
@@ -892,13 +895,11 @@ static Stmt *iteration_statement(){
 		Spacing(1);
 		res->rhs = statement();
 		res->count = count_loop++;
-	}else if(strncmp(str_pn(input, pos), "do", 2) == 0 &&
-			!digit_n(2) && !nondigit_n(2)){
+	}else if(try_input("do")){
 		Spacing(2);
 		res = new_Stmt(WHILE);
 		res->lhs = statement();
-		if(strncmp(str_pn(input, pos), "while", 5) != 0 ||
-				digit_n(5) || nondigit_n(5))
+		if(!try_input("while"))
 			error("iteration_statement:do:missing 'while'");
 		Spacing(5);
 		if(str_getchar(input, pos) != '(')
@@ -931,13 +932,11 @@ static Stmt *statement(){
 static Decs *type_specifier(){
 	char *c = str_pn(input, pos);
 	Decs *res = NULL;
-	if(strncmp(c, "int", 3) == 0
-			&& !nondigit_n(3) && !digit_n(3)){
+	if(try_input("int")){
 		res = new_Decs(DEC_TYPE);
 		res->vtype = new_Typeinfo(TINT);
 		Spacing(3);
-	}else if(strncmp(c, "char", 4) == 0
-			&& !nondigit_n(4) && !digit_n(4)){
+	}else if(try_input("char")){
 		res = new_Decs(DEC_TYPE);
 		res->vtype = new_Typeinfo(TCHAR);
 		Spacing(4);
