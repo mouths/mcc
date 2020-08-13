@@ -365,6 +365,16 @@ static void print_stmt(Stmt *in){
 		}
 		printf(".Liend%d:\n", in->count);
 		return;
+	}else if(in->type == WHILE){
+		printf(".Llstart%d:\n", in->count);
+		print_num(in->Nchild);
+		printf("pop %%rax\n");
+		printf("cmp $0, %%rax\n");
+		printf("je .Llend%d\n", in->count);
+		print_stmt(in->rhs);
+		printf("jmp .Llstart%d\n", in->count);
+		printf(".Llend%d:\n", in->count);
+		return;
 	}
 	error("print_statement");
 }

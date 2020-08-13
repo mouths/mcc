@@ -20,7 +20,7 @@ typedef struct Num{
 	struct Typeinfo *vtype;
 }Num;
 
-typedef enum{NONE, RET, EXP, CPD, ITEM, IF} Stype;
+typedef enum{NONE, RET, EXP, CPD, ITEM, IF, WHILE} Stype;
 
 typedef struct Stmt{
 	Stype type;

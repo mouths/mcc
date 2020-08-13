@@ -217,3 +217,14 @@ int main(){
 	int i;
 	return fib(5);
 }" 8
+try "
+int main(){
+	int i, sum;
+	i = 0;
+	sum = 0;
+	while(i < 5){
+		sum += i;
+		i += 1;
+	}
+	return sum;
+}" 10

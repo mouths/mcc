@@ -13,6 +13,7 @@ list *idlist;
 list *gidlist;
 list *strlist;
 int count_if;
+int count_loop;
 
 struct oplist{
 	char *op;
@@ -873,13 +874,35 @@ static Stmt *selection_statement(){
 	return res;
 }
 
-// statement <- compound_statement / jump_statement / expression_statement / selection_statement
+// iteration_statement <-
+//		'while' '(' expression ')' statement
+static Stmt *iteration_statement(){
+	Stmt *res = NULL;
+	if(strncmp(str_pn(input, pos), "while", 5) == 0 &&
+			!digit_n(5) && !nondigit_n(5)){
+		Spacing(5);
+		res = new_Stmt(WHILE);
+		if(str_getchar(input, pos) != '(')
+			error("iteration_statement:while:missing '('");
+		Spacing(1);
+		res->Nchild = expression();
+		if(str_getchar(input, pos) != ')')
+			error("iteration_statement:while:missing '('");
+		Spacing(1);
+		res->rhs = statement();
+		res->count = count_loop;
+	}
+	return res;
+}
+
+// statement <- compound_statement / jump_statement / expression_statement / selection_statement / iteration_statement
 static Stmt *statement(){
 	Stmt *res;
 	if((res = compound_statement()))return res;
 	if((res = jump_statement()))return res;
 	if((res = expression_statement()))return res;
 	if((res = selection_statement()))return res;
+	if((res = iteration_statement()))return res;
 	return NULL;
 }
 
@@ -1221,6 +1244,7 @@ void *parse(str *s){
 	gidlist = list_empty();
 	strlist = list_empty();
 	count_if = 0;
+	count_loop = 0;
 	Spacing(0);
 	Def *res = translation_unit();
 	res->strlist = strlist;
