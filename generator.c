@@ -58,7 +58,6 @@ static void print_num(Num *in){
 	if(in == NULL)error("print_num:null");
 	if(in->type == NUM){
 		printf("push $%d\n", in->i);
-		return;
 	}else if(
 			in->type == MUL ||
 			in->type == AND ||
@@ -89,7 +88,6 @@ static void print_num(Num *in){
 		printf("pop %%rax\n");
 		printf("%s %%%cbx, %%%cax\n", code, rsize(in, CENTER), rsize(in, CENTER));
 		printf("push %%rax\n");
-		return;
 	}else if(in->type == ADD){
 		print_num(in->lhs);
 		print_num(in->rhs);
@@ -118,7 +116,6 @@ static void print_num(Num *in){
 			error("ADD:adding between pointers is invalid");
 		printf("add %%%cbx, %%%cax\n", rsize(in, CENTER), rsize(in, CENTER));
 		printf("push %%rax\n");
-		return;
 	}else if(in->type == SUB){
 		print_num(in->lhs);
 		print_num(in->rhs);
@@ -137,7 +134,6 @@ static void print_num(Num *in){
 			printf("div %%rcx\n");
 		}
 		printf("push %%rax\n");
-		return;
 	}else if(in->type == DIV || in->type == MOD){
 		print_num(in->lhs);
 		print_num(in->rhs);
@@ -146,7 +142,6 @@ static void print_num(Num *in){
 		printf("pop %%rax\n");
 		printf("div %%%cbx\n", rsize(in, RHS));
 		printf("push %%r%cx\n", in->type == DIV ? 'a' : 'd');
-		return;
 	}else if(in->type == PLUS || in->type == MINUS){
 		print_num(in->lhs);
 		if(in->type == MINUS){
@@ -155,7 +150,6 @@ static void print_num(Num *in){
 			printf("sub %%%cbx, %%%cax\n", rsize(in, CENTER), rsize(in, CENTER));
 			printf("push %%rax\n");
 		}
-		return;
 	}else if(
 			in->type == LES ||
 			in->type == GRT ||
@@ -198,7 +192,6 @@ static void print_num(Num *in){
 		}
 		printf("movzb %%al, %%rax\n");
 		printf("push %%rax\n");
-		return ;
 	}else if(
 			in->type == AS
 			){
@@ -211,7 +204,6 @@ static void print_num(Num *in){
 		else
 			printf("mov %%al, (%%rbx)\n");
 		printf("push %%rax\n");
-		return;
 	}else if(
 			in->type == MULAS ||
 			in->type == ADDAS ||
@@ -257,7 +249,6 @@ static void print_num(Num *in){
 		printf("%s %%%cbx, (%%rax)\n", code, rsize(in, CENTER));
 		printf("mov (%%rax), %%%cax\n", rsize(in, CENTER));
 		printf("push %%rax\n");
-		return;
 	}else if(in->type == DIVAS || in->type == MODAS){
 		char c = (in->type == DIVAS ? 'a' : 'd');
 		print_addr(in->lhs);
@@ -269,7 +260,6 @@ static void print_num(Num *in){
 		printf("div %%%cbx\n", rsize(in, LHS));
 		printf("mov %%%c%cx, (%%rcx)\n", rsize(in, CENTER), c);
 		printf("push %%r%cx\n", c);
-		return;
 	}else if(in->type == ID){
 		print_addr(in);
 		if(get_type(in) != TARRAY){
@@ -280,22 +270,18 @@ static void print_num(Num *in){
 				printf("movsx (%%rbx), %%ax\n");
 			printf("push %%rax\n");
 		}
-		return;
 	}else if(in->type == CALL){
 		if(in->lhs)print_num(in->lhs);
 		printf("mov $0, %%al\n");
 		printf("call %s\n", in->name);
 		printf("push %%rax\n");
-		return;
 	}else if(in->type == PTR){
 		print_addr(in->lhs);
-		return;
 	}else if(in->type == DEREF){
 		print_num(in->lhs);
 		printf("pop %%rbx\n");
 		printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
 		printf("push %%rax\n");
-		return;
 	}else if(in->type == ARG){
 		int c = 0;
 		Num *tmp = in;
@@ -307,7 +293,6 @@ static void print_num(Num *in){
 		for(; c; c--){
 			printf("pop %%%s\n", arglist[c - 1]);
 		}
-		return;
 	}else if(in->type == GVAR){
 		print_addr(in);
 		if(get_type(in) != TARRAY){
@@ -315,15 +300,13 @@ static void print_num(Num *in){
 			printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
 			printf("push %%rax\n");
 		}
-		return;
 	}else if(in->type == STR){
 		printf("lea .L%d(%%rip), %%rax\n", in->i);
 		printf("push %%rax\n");
-		return;
+	}else{
+		fprintf(stderr, "%d\n", in->type);
+		error("print_num:undefined");
 	}
-
-	fprintf(stderr, "%d\n", in->type);
-	error("print_num:undefined");
 }
 
 static void print_stmt(Stmt *in){
@@ -335,20 +318,16 @@ static void print_stmt(Stmt *in){
 		printf("mov %%rbp, %%rsp\n");
 		printf("pop %%rbp\n");
 		printf("ret\n");
-		return;
 	}else if(in->type == EXP){
 		if(in->Nchild){
 			print_num(in->Nchild);
 			printf("pop %%rax\n");
 		}
-		return;
 	}else if(in->type == CPD){
 		if(in->rhs)print_stmt(in->rhs);
-		return;
 	}else if(in->type == ITEM){
 		print_stmt(in->rhs);
 		if(in->lhs)print_stmt(in->lhs);
-		return;
 	}else if(in->type == IF){
 		print_num(in->Nchild);
 		printf("pop %%rax\n");
@@ -364,7 +343,6 @@ static void print_stmt(Stmt *in){
 			print_stmt(in->lhs);
 		}
 		printf(".Liend%d:\n", in->count);
-		return;
 	}else if(in->type == WHILE){
 		printf(".Llstart%d:\n", in->count);
 		print_num(in->Nchild);
@@ -374,9 +352,9 @@ static void print_stmt(Stmt *in){
 		print_stmt(in->rhs);
 		printf("jmp .Llstart%d\n", in->count);
 		printf(".Llend%d:\n", in->count);
-		return;
+	}else{
+		error("print_statement");
 	}
-	error("print_statement");
 }
 
 void print_def(Def *in){
@@ -398,15 +376,14 @@ void print_def(Def *in){
 		}
 		print_stmt(in->Schild);
 		if(in->next)print_def(in->next);
-		return;
 	}else if(in->type == GVDEF){
 		printf(".data\n");
 		printf("%s:\n", in->name);
 		printf(".zero %d\n", in->idcount);
 		if(in->next)print_def(in->next);
-		return;
+	}else{
+		error("print_def");
 	}
-	error("print_def");
 }
 
 static void print_lit(list *lst){
