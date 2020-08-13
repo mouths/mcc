@@ -203,7 +203,10 @@ static void print_num(Num *in){
 		print_num(in->rhs);
 		printf("pop %%rax\n");
 		printf("pop %%rbx\n");
-		printf("mov %%%cax, (%%rbx)\n", rsize(in, CENTER));
+		if(in->vtype->size != CHAR_SIZE)
+			printf("mov %%%cax, (%%rbx)\n", rsize(in, CENTER));
+		else
+			printf("mov %%al, (%%rbx)\n");
 		printf("push %%rax\n");
 		return;
 	}else if(
@@ -268,12 +271,16 @@ static void print_num(Num *in){
 		print_addr(in);
 		if(get_type(in) != TARRAY){
 			printf("pop %%rbx\n");
-			printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
+			if(in->vtype->size != CHAR_SIZE)
+				printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
+			else
+				printf("movsx (%%rbx), %%ax\n");
 			printf("push %%rax\n");
 		}
 		return;
 	}else if(in->type == CALL){
 		if(in->lhs)print_num(in->lhs);
+		printf("mov $0, %%al\n");
 		printf("call %s\n", in->name);
 		printf("push %%rax\n");
 		return;

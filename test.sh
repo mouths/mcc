@@ -183,3 +183,18 @@ int main(){
 	a[1] = 2;
 	return a[0] + 1[a];
 }" 5
+try "
+int main(){
+	char a;
+	a = 1;
+	return a;
+}" 1
+try "int main(){
+int printf;
+char a[5];
+a[0] = 65;
+a[1] = 10;
+a[2] = 0;
+printf(a);
+return 0;
+}" 0

@@ -34,6 +34,7 @@ typedef enum{DEC_INI, DEC_PTR, DEC_DEC, DEC_DECTOR, DEC_FUN, DEC_ARRAY, DEC_VAR,
 
 typedef struct Decs{
 	Dectype type;
+	Typeinfo *vtype;
 	struct Decs *next, *lhs, *rhs;
 	char *name;
 	int size;
@@ -118,6 +119,9 @@ static Typeinfo *new_Typeinfo(Type type){
 	res->type =type;
 	res->ptr = NULL;
 	switch(type){
+		case TCHAR:
+			res->size = CHAR_SIZE;
+			break;
 		case TINT:
 			res->size = INT_SIZE;
 			break;
@@ -703,7 +707,8 @@ static void local_variable_assign(Decs *in){
 		local_variable_assign(in->lhs);
 		if(in->rhs)local_variable_assign(in->rhs);
 	}else if(in->type == DEC_TYPE){
-		type = new_Typeinfo(TINT);
+		type = in->vtype;
+		//type = new_Typeinfo(TINT);
 	}else if(in->type == DEC_DECTOR){
 		if(in->lhs)local_variable_assign(in->lhs);
 		local_variable_assign(in->rhs);
@@ -788,14 +793,21 @@ static Stmt *statement(){
 	return NULL;
 }
 
-// type_specifier <- 'int'
+// type_specifier <- 'int' / 'char'
 static Decs *type_specifier(){
 	char *c = str_pn(input, pos);
-	if(strncmp(c, "int", 3) != 0)return NULL;
-	if(nondigit_n(3))return NULL;
-	Decs *res = new_Decs(DEC_TYPE);
-	res->name = name_copy(3);
-	Spacing(3);
+	Decs *res = NULL;
+	if(strncmp(c, "int", 3) == 0
+			&& !nondigit_n(3) && !digit_n(3)){
+		res = new_Decs(DEC_TYPE);
+		res->vtype = new_Typeinfo(TINT);
+		Spacing(3);
+	}else if(strncmp(c, "char", 4) == 0
+			&& !nondigit_n(4) && !digit_n(4)){
+		res = new_Decs(DEC_TYPE);
+		res->vtype = new_Typeinfo(TCHAR);
+		Spacing(4);
+	}
 	return res;
 }
 
@@ -994,7 +1006,8 @@ static char *assign_function(Decs *in){
 		assign_function(in->lhs);
 		assign_function(in->rhs);
 	}else if(in->type == DEC_TYPE){
-		type = new_Typeinfo(TINT);
+		type = in->vtype;
+		//type = new_Typeinfo(TINT);
 	}else if(in->type == DEC_DECTOR){
 		// set pointer
 		if(in->lhs)assign_function(in->lhs);
@@ -1042,7 +1055,8 @@ static Def *global_variable_assign(Decs *in){
 		global_variable_assign(in->lhs);
 		if(in->rhs)global_variable_assign(in->rhs);
 	}else if(in->type == DEC_TYPE){
-		type = new_Typeinfo(TINT);
+		type = in->vtype;
+		//type = new_Typeinfo(TINT);
 	}else if(in->type == DEC_DECTOR){
 		if(in->lhs)global_variable_assign(in->lhs);
 		global_variable_assign(in->rhs);

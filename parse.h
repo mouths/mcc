@@ -3,6 +3,7 @@
 
 #define INT_SIZE 4
 #define PTR_SIZE 8
+#define CHAR_SIZE 1
 
 typedef enum{NUM, ADD, SUB, MUL, DIV, MOD, PLUS, MINUS, LES, GRT, LEQ, GEQ, EQ, NEQ, AND, XOR, OR, AS, MULAS, DIVAS, MODAS, ADDAS, SUBAS, LSAS, RSAS, LAAS, LXAS, LOAS, ID, CALL, PTR, DEREF, ARG, GVAR} Ntype;
 
@@ -35,7 +36,7 @@ typedef struct Def{
 	struct Def *next;
 }Def;
 
-typedef enum{TINT, TPTR, TARRAY} Type;
+typedef enum{TINT, TCHAR, TPTR, TARRAY} Type;
 
 typedef struct Typeinfo{
 	Type type;
