@@ -11,6 +11,7 @@ str *input;
 int pos;
 list *idlist;
 list *gidlist;
+list *strlist;
 
 struct oplist{
 	char *op;
@@ -313,12 +314,79 @@ static Num *identifier(){
 	return NULL;
 }
 
+// escape_sequence <- simple-escape-sequence
+// simple-escape-sequence <- '\'' / '\"' / '\?' / '\\' / '\a' / '\b' / '\f' / '\n' / '\r' / '\t' / '\v'
+static int escape_sequence(int p){
+	const char * simple_escape[11] = {
+		"\\'",
+		"\\\"",
+		"\\?",
+		"\\\\",
+		"\\a",
+		"\\b",
+		"\\f",
+		"\\n",
+		"\\r",
+		"\\t",
+		"\\v"
+	};
+	for(int i = 0; i < 11; i++){
+		if(strncmp(simple_escape[i], str_pn(input, pos + p), 2) == 0)return 2;
+	}
+	return 0;
+}
+
+// s_char <- escape_sequence / !('"' / '\').
+static int s_char(int p){
+	int next = escape_sequence(p);
+	if(next)return next;
+	char c = str_getchar(input, pos + p);
+	if(c == '"' || c == '\\')return 0;
+	return 1;
+}
+
+// s_char_sequence <- s_char+
+static int s_char_sequence(){
+	int i = 0;
+	int next = 0;
+	while((next = s_char(i)))i += next;
+	return i;
+}
+
+static int register_strlit(char *lit){
+	int no = list_search_n(lit, (int (*)(const void*, const void*))strcmp, strlist);
+	if(no == -1){
+		list_append(lit, strlist);
+		no = list_len(strlist) - 1;
+	}else
+		free(lit);
+	return no;
+}
+
+// string_literal <- '"' s_char_sequence?  '"'
+static Num *string_literal(){
+	char c = str_getchar(input, pos);
+	Num *res = NULL;
+	if(c == '"'){
+		res = new_Num(STR);
+		pos++;
+		int len = s_char_sequence();
+		res->i = register_strlit(name_copy(len));
+		pos += len;
+		if(str_getchar(input, pos) != '"')
+			error("string_literal:missing '\"'");
+		Spacing(1);
+	}
+	return res;
+}
+
 static Num *expression();
 // primary_expression <- constant / identifier / ( expression )
 static Num *primary_expression(){
 	Num *res;
 	if((res = constant()))return res;
 	if((res = identifier()))return res;
+	if((res = string_literal()))return res;
 	char c = str_getchar(input, pos);
 	if(c == '('){
 		Spacing(1);
@@ -1113,6 +1181,9 @@ void *parse(str *s){
 	pos = 0;
 	idlist = list_empty();
 	gidlist = list_empty();
+	strlist = list_empty();
 	Spacing(0);
-	return translation_unit();
+	Def *res = translation_unit();
+	res->strlist = strlist;
+	return res;
 }

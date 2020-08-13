@@ -70,6 +70,15 @@ void *list_search(void * con, int (*cmp) (const void *, const void *), list *lst
 	return NULL;
 }
 
+int list_search_n(void * con, int (*cmp) (const void *, const void *), list *lst){
+	int n = 0;
+	for(BODY *i = lst->body; i; i = i->next){
+		if(cmp(con, i->con) == 0)return n;
+		n++;
+	}
+	return -1;
+}
+
 void *list_getn(int n, list *lst){
 	int c = 0;
 	for(BODY *i = lst->body; i; i = i->next)

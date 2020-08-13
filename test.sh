@@ -2,7 +2,7 @@
 
 CC=gcc
 try(){
-	echo -e "$1" | ../mcc > ./out.S
+	echo "$1" | ../mcc > ./out.S
 	${CC} -g -c ./out.S
 	${CC} -g -static -o ./out.out ./test.o ./out.o
 	./out.out
@@ -197,4 +197,9 @@ a[1] = 10;
 a[2] = 0;
 printf(a);
 return 0;
+}" 0
+try "int main(){
+	int printf;
+	printf(\"hoge\\n\");
+	return 0;
 }" 0

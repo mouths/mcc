@@ -3,6 +3,7 @@
 
 #include "str.h"
 #include "parse.h"
+#include "tool.h"
 
 #define LHS 0
 #define RHS 1
@@ -314,6 +315,10 @@ static void print_num(Num *in){
 			printf("push %%rax\n");
 		}
 		return;
+	}else if(in->type == STR){
+		printf("lea .L%d(%%rip), %%rax\n", in->i);
+		printf("push %%rax\n");
+		return;
 	}
 
 	fprintf(stderr, "%d\n", in->type);
@@ -370,10 +375,22 @@ void print_def(Def *in){
 	error("print_def");
 }
 
+static void print_lit(list *lst){
+	int len = list_len(lst);
+	for(int i = 0; i < len; i++){
+		printf(".L%d:\n", i);
+		printf(".string \"%s\"\n", (char*)list_getn(i, lst));
+	}
+}
+
 void generator(void *in){
 	if(in == NULL){
 		fprintf(stderr, "generator error\n");
 		exit(1);
+	}
+	if(list_len(((Def *)in)->strlist)){
+		printf(".section\t.rodata\n");
+		print_lit(((Def *)in)->strlist);
 	}
 	print_def(in);
 }

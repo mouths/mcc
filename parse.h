@@ -1,3 +1,5 @@
+#include "tool.h"
+
 #ifndef PARSE_h
 #define PARSE_h
 
@@ -5,7 +7,7 @@
 #define PTR_SIZE 8
 #define CHAR_SIZE 1
 
-typedef enum{NUM, ADD, SUB, MUL, DIV, MOD, PLUS, MINUS, LES, GRT, LEQ, GEQ, EQ, NEQ, AND, XOR, OR, AS, MULAS, DIVAS, MODAS, ADDAS, SUBAS, LSAS, RSAS, LAAS, LXAS, LOAS, ID, CALL, PTR, DEREF, ARG, GVAR} Ntype;
+typedef enum{NUM, ADD, SUB, MUL, DIV, MOD, PLUS, MINUS, LES, GRT, LEQ, GEQ, EQ, NEQ, AND, XOR, OR, AS, MULAS, DIVAS, MODAS, ADDAS, SUBAS, LSAS, RSAS, LAAS, LXAS, LOAS, ID, CALL, PTR, DEREF, ARG, GVAR, STR} Ntype;
 
 typedef struct Num{
 	Ntype type;
@@ -34,6 +36,7 @@ typedef struct Def{
 	char *name;
 	int idcount;
 	struct Def *next;
+	list *strlist;
 }Def;
 
 typedef enum{TINT, TCHAR, TPTR, TARRAY} Type;
