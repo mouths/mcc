@@ -361,6 +361,26 @@ static void print_stmt(Stmt *in){
 			printf("cmp $0, %%rax\n");
 			printf("jne .Llbegin%d\n", in->count);
 		}
+	}else if(in->type == FOR){
+		if(in->init){
+			print_num(in->init);
+			printf("pop %%rax\n");
+		}
+		printf(".Llbegin%d:\n", in->count);
+		printf("mov $1, %%rax\n");
+		if(in->Nchild){
+			print_num(in->Nchild);
+			printf("pop %%rax\n");
+		}
+		printf("cmp $0, %%rax\n");
+		printf("je .Llend%d\n", in->count);
+		print_stmt(in->rhs);
+		if(in->iteration){
+			print_num(in->iteration);
+			printf("pop %%rax\n");
+		}
+		printf("jmp .Llbegin%d\n", in->count);
+		printf(".Llend%d:\n", in->count);
 	}else{
 		error("print_statement");
 	}

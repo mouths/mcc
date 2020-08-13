@@ -239,3 +239,16 @@ int main(){
 	}while(i);
 	return sum;
 }" 15
+try "
+int main(){
+	int i;
+	for(i = 0; i < 255; i += 1);
+	return i;
+}" 255
+# bad example:infinite loop
+#try "
+#int main(){
+#	int i;
+#	for(i = 0; ; i += 1);
+#	return i;
+#}" 255

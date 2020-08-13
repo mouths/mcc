@@ -103,7 +103,7 @@ static Num *new_Num(Ntype t){
 static Stmt *new_Stmt(Stype t){
 	Stmt *res = malloc(sizeof(Stmt));
 	res->type = t;
-	res->Nchild = NULL;
+	res->init = res->iteration = res->Nchild = NULL;
 	res->rhs = res->lhs = NULL;
 	return res;
 }
@@ -912,6 +912,26 @@ static Stmt *iteration_statement(){
 		if(str_getchar(input, pos) != ';')
 			error("iteration_statement:do:missing ';'");
 		Spacing(1);
+		res->count = count_loop++;
+	}else if(try_input("for")){
+		Spacing(3);
+		res = new_Stmt(FOR);
+		if(str_getchar(input, pos) != '(')
+			error("iteration_statement:for:missing '('");
+		Spacing(1);
+		res->init = expression();
+		if(str_getchar(input, pos) != ';')
+			error("iteration_statement:for:missing ';'");
+		Spacing(1);
+		res->Nchild = expression();
+		if(str_getchar(input, pos) != ';')
+			error("iteration_statement:for:missing ';'");
+		Spacing(1);
+		res->iteration = expression();
+		if(str_getchar(input, pos) != ')')
+			error("iteration_statement:for:missing ')'");
+		Spacing(1);
+		res->rhs = statement();
 		res->count = count_loop++;
 	}
 	return res;

@@ -20,11 +20,11 @@ typedef struct Num{
 	struct Typeinfo *vtype;
 }Num;
 
-typedef enum{NONE, RET, EXP, CPD, ITEM, IF, WHILE} Stype;
+typedef enum{NONE, RET, EXP, CPD, ITEM, IF, WHILE, FOR} Stype;
 
 typedef struct Stmt{
 	Stype type;
-	Num *Nchild;
+	Num *Nchild, *init, *iteration;
 	struct Stmt *lhs, *rhs;
 	int count;
 }Stmt;
