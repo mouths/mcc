@@ -9,6 +9,8 @@
 #define RHS 1
 #define CENTER 2
 
+const char *arglist[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+
 static void error(char *msg){
 	if(msg == NULL)
 		fprintf(stderr, "generator error\n");
@@ -295,7 +297,6 @@ static void print_num(Num *in){
 		printf("push %%rax\n");
 		return;
 	}else if(in->type == ARG){
-		const char *arglist[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 		int c = 0;
 		Num *tmp = in;
 		while(tmp){
@@ -348,6 +349,22 @@ static void print_stmt(Stmt *in){
 		print_stmt(in->rhs);
 		if(in->lhs)print_stmt(in->lhs);
 		return;
+	}else if(in->type == IF){
+		print_num(in->Nchild);
+		printf("pop %%rax\n");
+		printf("cmp $0, %%rax\n");
+		if(in->rhs){
+			printf("je .Lielse%d\n", in->count);
+			print_stmt(in->lhs);
+			printf("jmp .Liend%d\n", in->count);
+			printf(".Lielse%d:\n", in->count);
+		print_stmt(in->rhs);
+		}else{
+			printf("je .Liend%d\n", in->count);
+			print_stmt(in->lhs);
+		}
+		printf(".Liend%d:\n", in->count);
+		return;
 	}
 	error("print_statement");
 }
@@ -362,6 +379,13 @@ void print_def(Def *in){
 		printf("mov %%rsp, %%rbp\n");
 		if(in->idcount)
 			printf("sub $%d, %%rsp\n", in->idcount);
+		int p = 0;
+		for(Num *i = in->arguments; i; i = i->lhs){
+			printf("mov %%%s, %%rax\n", arglist[p++]);
+			printf("mov $%d, %%rbx\n", -i->offset);
+			printf("lea (%%rbp, %%rbx), %%rbx\n");
+			printf("mov %%%cax, (%%rbx)\n", rsize(i, CENTER));
+		}
 		print_stmt(in->Schild);
 		if(in->next)print_def(in->next);
 		return;

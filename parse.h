@@ -20,12 +20,13 @@ typedef struct Num{
 	struct Typeinfo *vtype;
 }Num;
 
-typedef enum{NONE, RET, EXP, CPD, ITEM} Stype;
+typedef enum{NONE, RET, EXP, CPD, ITEM, IF} Stype;
 
 typedef struct Stmt{
 	Stype type;
 	Num *Nchild;
 	struct Stmt *lhs, *rhs;
+	int count;
 }Stmt;
 
 typedef enum{FUN, GVDEF} Dtype;
@@ -35,6 +36,7 @@ typedef struct Def{
 	Stmt *Schild;
 	char *name;
 	int idcount;
+	Num *arguments;
 	struct Def *next;
 	list *strlist;
 }Def;

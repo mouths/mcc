@@ -12,6 +12,7 @@ int pos;
 list *idlist;
 list *gidlist;
 list *strlist;
+int count_if;
 
 struct oplist{
 	char *op;
@@ -802,11 +803,6 @@ static void local_variable_assign(Decs *in){
 		Typeinfo *tmp = new_Typeinfo(TPTR);
 		tmp->ptr = type;
 		type = tmp;
-	}else if(in->type == DEC_PARAM){
-		type = NULL;
-		local_variable_assign(in->lhs);
-		local_variable_assign(in->rhs);
-		if(in->next)local_variable_assign(in->next);
 	}else{
 		fprintf(stderr, "dec no:%d\n", in->type);
 		error("local_variable_assign:undefined");
@@ -852,12 +848,38 @@ static Stmt *compound_statement(){
 	return res;
 }
 
-// statement <- expression_statement / jump_statement
+// selection_statement <- 'if' '(' expression ')' statement ('else' statement)?
+static Stmt *selection_statement(){
+	Stmt *res = NULL;
+	if(strncmp("if", str_pn(input, pos), 2) == 0 &&
+			!nondigit_n(2) && !digit_n(2)){
+		Spacing(2);
+		if(str_getchar(input, pos) != '(')
+			error("selection_statement:missing '('");
+		Spacing(1);
+		res = new_Stmt(IF);
+		res->count = count_if++;
+		res->Nchild = expression();
+		if(str_getchar(input, pos) != ')')
+			error("selection_statement:missing ')'");
+		Spacing(1);
+		res->lhs = statement();
+		if(strncmp("else", str_pn(input, pos), 4) == 0 &&
+				!nondigit_n(4) && !digit_n(4)){
+			Spacing(4);
+			res->rhs = statement();
+		}
+	}
+	return res;
+}
+
+// statement <- compound_statement / jump_statement / expression_statement / selection_statement
 static Stmt *statement(){
 	Stmt *res;
 	if((res = compound_statement()))return res;
 	if((res = jump_statement()))return res;
 	if((res = expression_statement()))return res;
+	if((res = selection_statement()))return res;
 	return NULL;
 }
 
@@ -1066,21 +1088,22 @@ static Decs *declaration(){
 	return res;
 }
 
-static char *assign_function(Decs *in){
+static void assign_function(Decs *in, Def *func){
 	static Typeinfo *type;
-	static char *name;
+	static Num *tmp;
 	if(in->type == DEC_DEF){
 		type = NULL;
-		assign_function(in->lhs);
-		assign_function(in->rhs);
+		func->arguments = NULL;
+		assign_function(in->lhs, func);
+		assign_function(in->rhs, func);
 	}else if(in->type == DEC_TYPE){
 		type = in->vtype;
 		//type = new_Typeinfo(TINT);
 	}else if(in->type == DEC_DECTOR){
 		// set pointer
-		if(in->lhs)assign_function(in->lhs);
+		if(in->lhs)assign_function(in->lhs, func);
 		// registratino functino name
-		assign_function(in->rhs);
+		assign_function(in->rhs, func);
 	}else if(in->type == DEC_FUN){
 		struct id_container *con = new_container();
 		con->name = in->name;
@@ -1088,15 +1111,29 @@ static char *assign_function(Decs *in){
 			error("assign_function:redeclaration function");
 		con->type = type;
 		list_append(con, gidlist);
-		name = con->name;
-		if(in->lhs)assign_function(in->lhs);
+		func->name = con->name;
+		if(in->lhs)assign_function(in->lhs, func);
 	}else if(in->type == DEC_PARAM){
-		local_variable_assign(in);
+		type = NULL;
+		// register type of local variable
+		local_variable_assign(in->lhs);
+		// register identifier as local variable
+		local_variable_assign(in->rhs);
+		if(!tmp){
+			tmp = func->arguments = new_Num(ID);
+		}else{
+			tmp = tmp->lhs = new_Num(ID);
+		}
+		tmp->name = in->rhs->rhs->name;
+		struct id_container *con = list_getn(list_len(idlist) - 1, idlist);
+		fprintf(stderr, "%d\n", con->offset);
+		tmp->offset = con->offset;
+		tmp->vtype = con->type;
+		if(in->next)assign_function(in->next, func);
 	}else{
 		fprintf(stderr, "%d\n", in->type);
 		error("assign_function:undefined");
 	}
-	return name;
 }
 
 // function_definition <- type-specifier declarator compound_statement
@@ -1107,10 +1144,11 @@ static Def *function_definition(){
 	in->lhs = type_specifier();
 	if(in->lhs == NULL)return NULL;
 	in->rhs = declarator();
-	res->name = assign_function(in);
+	assign_function(in, res);
 
 	res->Schild = compound_statement();
-	res->idcount = list_map_sum(count_id_offset, idlist);
+	struct id_container *tmp = list_getn(list_len(idlist) - 1, idlist);
+	res->idcount = tmp ? tmp->offset : 0;
 	return res;
 }
 
@@ -1182,6 +1220,7 @@ void *parse(str *s){
 	idlist = list_empty();
 	gidlist = list_empty();
 	strlist = list_empty();
+	count_if = 0;
 	Spacing(0);
 	Def *res = translation_unit();
 	res->strlist = strlist;
