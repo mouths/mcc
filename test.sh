@@ -228,3 +228,14 @@ int main(){
 	}
 	return sum;
 }" 10
+try "
+int main(){
+	int i, sum;
+	i = 5;
+	sum = 0;
+	do{
+		sum += i;
+		i -= 1;
+	}while(i);
+	return sum;
+}" 15

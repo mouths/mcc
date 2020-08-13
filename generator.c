@@ -344,14 +344,23 @@ static void print_stmt(Stmt *in){
 		}
 		printf(".Liend%d:\n", in->count);
 	}else if(in->type == WHILE){
-		printf(".Llstart%d:\n", in->count);
-		print_num(in->Nchild);
-		printf("pop %%rax\n");
-		printf("cmp $0, %%rax\n");
-		printf("je .Llend%d\n", in->count);
-		print_stmt(in->rhs);
-		printf("jmp .Llstart%d\n", in->count);
-		printf(".Llend%d:\n", in->count);
+		if(in->rhs){
+			printf(".Llbegin%d:\n", in->count);
+			print_num(in->Nchild);
+			printf("pop %%rax\n");
+			printf("cmp $0, %%rax\n");
+			printf("je .Llend%d\n", in->count);
+			print_stmt(in->rhs);
+			printf("jmp .Llbegin%d\n", in->count);
+			printf(".Llend%d:\n", in->count);
+		}else{
+			printf(".Llbegin%d:\n", in->count);
+			print_stmt(in->lhs);
+			print_num(in->Nchild);
+			printf("pop %%rax\n");
+			printf("cmp $0, %%rax\n");
+			printf("jne .Llbegin%d\n", in->count);
+		}
 	}else{
 		error("print_statement");
 	}

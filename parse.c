@@ -875,7 +875,8 @@ static Stmt *selection_statement(){
 }
 
 // iteration_statement <-
-//		'while' '(' expression ')' statement
+//		'while' '(' expression ')' statement /
+//		'do' statement 'while' '(' expression ')' ';'
 static Stmt *iteration_statement(){
 	Stmt *res = NULL;
 	if(strncmp(str_pn(input, pos), "while", 5) == 0 &&
@@ -890,7 +891,27 @@ static Stmt *iteration_statement(){
 			error("iteration_statement:while:missing '('");
 		Spacing(1);
 		res->rhs = statement();
-		res->count = count_loop;
+		res->count = count_loop++;
+	}else if(strncmp(str_pn(input, pos), "do", 2) == 0 &&
+			!digit_n(2) && !nondigit_n(2)){
+		Spacing(2);
+		res = new_Stmt(WHILE);
+		res->lhs = statement();
+		if(strncmp(str_pn(input, pos), "while", 5) != 0 ||
+				digit_n(5) || nondigit_n(5))
+			error("iteration_statement:do:missing 'while'");
+		Spacing(5);
+		if(str_getchar(input, pos) != '(')
+			error("iteration_statement:do:missing '('");
+		Spacing(1);
+		res->Nchild = expression();
+		if(str_getchar(input, pos) != ')')
+			error("iteration_statement:do:missing ')'");
+		Spacing(1);
+		if(str_getchar(input, pos) != ';')
+			error("iteration_statement:do:missing ';'");
+		Spacing(1);
+		res->count = count_loop++;
 	}
 	return res;
 }
