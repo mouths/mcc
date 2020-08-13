@@ -170,3 +170,16 @@ int main(){
 	a = 3;
 	return a;
 }" 3
+try "
+int a[3];
+int main(){
+	*a = 1;
+	*(a + 1) = 2;
+	return *(a) + *(a + 1) * 2;
+}" 5
+try "int a[3];
+int main(){
+	a[0] = 3;
+	a[1] = 2;
+	return a[0] + 1[a];
+}" 5

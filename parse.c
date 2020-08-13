@@ -1046,7 +1046,13 @@ static Def *global_variable_assign(Decs *in){
 	}else if(in->type == DEC_DECTOR){
 		if(in->lhs)global_variable_assign(in->lhs);
 		global_variable_assign(in->rhs);
-	}else if(in->type == DEC_VAR){
+	}else if(in->type == DEC_VAR ||
+			in->type == DEC_ARRAY){
+		if(in->type == DEC_ARRAY){
+			Typeinfo *tmp = new_Typeinfo(TARRAY);
+			tmp->ptr = type;
+			type = tmp;
+		}
 		struct id_container *con = new_container();
 		con->name = in->name;
 		if(list_search(con, id_container_cmp, gidlist))
@@ -1055,7 +1061,10 @@ static Def *global_variable_assign(Decs *in){
 		list_append(con, gidlist);
 		res = new_Def(GVDEF);
 		res->name = in->name;
-		res->idcount = type->size;
+		if(in->type == DEC_ARRAY)
+			res->idcount = type->ptr->size * in->size;
+		else
+			res->idcount = type->size;
 	}else{
 		fprintf(stderr, "dec no:%d\n", in->type);
 		error("global_variable_assign:undefined");

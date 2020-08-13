@@ -301,9 +301,11 @@ static void print_num(Num *in){
 		return;
 	}else if(in->type == GVAR){
 		print_addr(in);
-		printf("pop %%rbx\n");
-		printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
-		printf("push %%rax\n");
+		if(get_type(in) != TARRAY){
+			printf("pop %%rbx\n");
+			printf("mov (%%rbx), %%%cax\n", rsize(in, CENTER));
+			printf("push %%rax\n");
+		}
 		return;
 	}
 
