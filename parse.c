@@ -32,6 +32,7 @@ struct id_container{
 	int offset;
 	Typeinfo *type;
 	int size;
+	bool defined;
 };
 
 typedef enum{DEC_INI, DEC_PTR, DEC_DEC, DEC_DECTOR, DEC_FUN, DEC_ARRAY, DEC_VAR, DEC_PARAM, DEC_TYPE, DEC_DEF} Dectype;
@@ -72,6 +73,25 @@ static struct id_container *new_container(){
 	res->offset = 0;
 	res->type = NULL;
 	res->size = 1;
+	res->defined = false;
+}
+
+static bool is_same_type(Typeinfo *a, Typeinfo *b){
+	if(a->type != b->type){
+		if((a->type != TARRAY && a->type != TPTR) ||
+				(b->type != TARRAY && b->type != TPTR))
+			return false;
+	}
+	if(a->type == TINT || a->type == TCHAR)return true;
+	if(a->type == TPTR || a->type == TARRAY)is_same_type(a->ptr, b->ptr);
+	if(a->type == TFUNC){
+		if(!is_same_type(a->ptr, b->ptr))return false;
+		if(list_len(a->args) != list_len(b->args))return false;
+		for(int i = 0; i < list_len(a->args); i++){
+			if(!is_same_type(list_getn(i, a->args), list_getn(i, b->args)))return false;
+		}
+	}
+	return true;
 }
 
 static char *name_copy(int n){
@@ -133,8 +153,9 @@ static Def *new_Def(Dtype t){
 
 static Typeinfo *new_Typeinfo(Type type){
 	Typeinfo *res = malloc(sizeof(Typeinfo));
-	res->type =type;
+	res->type = type;
 	res->ptr = NULL;
+	res->args = NULL;
 	switch(type){
 		case TCHAR:
 			res->size = CHAR_SIZE;
@@ -1097,7 +1118,7 @@ static bool identifier_list(){
 */
 
 static Decs* declarator();
-// parameter_declaration <- declaration_specifiers declarator
+// parameter_declaration <- declaration_specifiers declarator?
 // DEC_PARAM
 static Decs *parameter_declaration(){
 	int p = pos;
@@ -1106,10 +1127,6 @@ static Decs *parameter_declaration(){
 	res = new_Decs(DEC_PARAM);
 	res->lhs = tmp;
 	res->rhs = declarator();
-	if(res->rhs == NULL){
-		pos = p;
-		return NULL;
-	}
 	return res;
 }
 
@@ -1270,11 +1287,14 @@ static void assign_function(Decs *in, Def *func){
 		con->name = in->name;
 		result = list_search(con, id_container_cmp, gidlist);
 		if(result){
-			error("prototype is not implemented");
-			if(result->type)error("assign_function:redeclaration function");
-			result->type = type;
+			if(!is_same_type(type, result->type))
+				error("assign_function:type error");
+			if(result->defined)
+				error("assign_function:redeclaration");
+			result->defined = true;
 		}else{
 			con->type = type;
+			con->defined = true;
 			list_append(con, gidlist);
 		}
 		func->name = con->name;
@@ -1313,6 +1333,35 @@ static Def *function_definition(){
 	return res;
 }
 
+static list *make_type(Decs *in){
+	static Typeinfo *type = NULL;
+	static list *res = NULL;
+	if(in->type == DEC_PARAM){
+		Typeinfo *tmpt = type;
+		list *tmplst = res;
+		res = list_empty();
+		for(Decs *it = in; it; it = it->next){
+			type = NULL;
+			make_type(it->lhs);
+			if(it->rhs)make_type(it->rhs);
+			list_append(type, res);
+		}
+		type = tmpt;
+		list *tmp = res;
+		res = tmplst;
+		return tmp;
+	}else if(in->type == DEC_TYPE){
+		type = in->vtype;
+	}else if(in->type == DEC_DECTOR){
+		if(in->lhs)make_type(in->lhs);
+		make_type(in->rhs);
+	}else if(in->type == DEC_VAR){
+	}else{
+		fprintf(stderr, "dec no:%d\n", in->type);
+		error("make_type:undefined");
+	}
+}
+
 static Def *global_variable_assign(Decs *in){
 	static Typeinfo *type;
 	static Def *res;
@@ -1348,10 +1397,17 @@ static Def *global_variable_assign(Decs *in){
 			res->idcount = type->size;
 	}else if(in->type == DEC_FUN){
 		struct id_container *con = new_container();
+		Typeinfo *tmp = new_Typeinfo(TFUNC);
+		tmp->ptr = type;
+		type = tmp;
+		if(in->lhs)global_variable_assign(in->lhs);
 		con->name = in->name;
+		con->type = type;
 		if(!list_search(con, id_container_cmp, gidlist))
 			list_append(con, gidlist);
 		res = new_Def(GVDEF);
+	}else if(in->type == DEC_PARAM){
+		type->args = make_type(in);
 	}else{
 		fprintf(stderr, "dec no:%d\n", in->type);
 		error("global_variable_assign:undefined");

@@ -304,3 +304,13 @@ int main(){
 	*/
 	return /* 3 */ 0;
 } //comment" 0
+try "
+int printf();
+int fib(int);
+int fib(int n){
+	return n <= 1 ? 1 : fib(n - 1) + fib(n - 2);
+}
+int main(){
+	printf(\"fib(5) = %d\\n\", fib(5));
+	return 0;
+}" 0
