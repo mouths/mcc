@@ -635,7 +635,7 @@ static Num *and_expression(){
 	if(!res)return res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
-	while(c == '&'){
+	while(c == '&' && strncmp(str_pn(input, pos), "&&", 2) != 0){
 		Spacing(1);
 		tmp = new_Num(AND);
 		tmp->lhs = res;
@@ -692,6 +692,22 @@ static Num *inclusive_or_expression(){
 	return res;
 }
 
+// logical_AND_expression <- inclusive_OR_expression ('&&' inclusive_OR_expression)*
+static Num *logical_and_expression(){
+	Num *res, *tmp;
+	res = inclusive_or_expression();
+	if(!res)return NULL;
+	while(strncmp(str_pn(input, pos), "&&", 2) == 0){
+		Spacing(2);
+		tmp = new_Num(LAND);
+		tmp->lhs = res;
+		res = tmp;
+		res->rhs = inclusive_or_expression();
+		res->vtype = new_Typeinfo(TINT);
+		res->i = count_if++;
+	}
+	return res;
+}
 // TODO logical-AND-expression ~ assignment-expression
 
 // assignment_expression <- unary_expression assignment-operator assignment_expression / inclusive_or_expression
@@ -713,23 +729,25 @@ static Num *assignment_expression(){
 	int p = pos;
 	Num *res = unary_expression();
 	Num *tmp;
-	if(!res)return inclusive_or_expression();
+	if(!res)return logical_and_expression();
 	char *c = str_pn(input, pos);
-	for(int i = 0; i < 11; i++){
-		if(i == 0 && strncmp(c, "==", 2) == 0)continue;
-		if(strncmp(c, ops[i].op, ops[i].len) == 0){
-			Spacing(ops[i].len);
-			tmp = new_Num(ops[i].type);
-			tmp->lhs = res;
-			res = tmp;
-			res->vtype = res->lhs->vtype;
-			if(!(res->rhs = assignment_expression()))
-				error("assignment_expression:rhs is NULL");
-			return res;
+	if(strncmp(c, "==", 2)){
+		for(int i = 0; i < 11; i++){
+			//if(i == 0 && strncmp(c, "==", 2) == 0)continue;
+			if(strncmp(c, ops[i].op, ops[i].len) == 0){
+				Spacing(ops[i].len);
+				tmp = new_Num(ops[i].type);
+				tmp->lhs = res;
+				res = tmp;
+				res->vtype = res->lhs->vtype;
+				if(!(res->rhs = assignment_expression()))
+					error("assignment_expression:rhs is NULL");
+				return res;
+			}
 		}
 	}
 	pos = p;
-	return inclusive_or_expression();
+	return logical_and_expression();
 }
 
 // expression <- inclusive_or_expression

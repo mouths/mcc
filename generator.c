@@ -303,6 +303,18 @@ static void print_num(Num *in){
 	}else if(in->type == STR){
 		printf("lea .L%d(%%rip), %%rax\n", in->i);
 		printf("push %%rax\n");
+	}else if(in->type == LAND){
+		print_num(in->lhs);
+		printf("pop %%rax\n");
+		printf("cmp $0, %%rax\n");
+		printf("je .Liend%d\n", in->i);
+		print_num(in->rhs);
+		printf("pop %%rax\n");
+		printf("cmp $0, %%rax\n");
+		printf("setne %%al\n");
+		printf("movzb %%al, %%rax\n");
+		printf(".Liend%d:\n", in->i);
+		printf("push %%rax\n");
 	}else{
 		fprintf(stderr, "%d\n", in->type);
 		error("print_num:undefined");

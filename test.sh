@@ -252,3 +252,17 @@ int main(){
 #	for(i = 0; ; i += 1);
 #	return i;
 #}" 255
+try "
+int main(){
+	int i;
+	i = 1;
+	(i += 1) == 1 && (i += 5);
+	return i;
+}" 2
+try "
+int main(){
+	int i;
+	i = 1;
+	(i += 1) != 1 && (i += 5) == 0 && (i += 3);
+	return i;
+}" 7
