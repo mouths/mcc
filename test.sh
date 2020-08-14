@@ -266,3 +266,17 @@ int main(){
 	(i += 1) != 1 && (i += 5) == 0 && (i += 3);
 	return i;
 }" 7
+try "
+int main(){
+	int i;
+	i = 1;
+	i || (i += 1);
+	return i;
+}" 1
+try "
+int main(){
+	int i;
+	i = 0;
+	i || (i += 1) || (i += 5);
+	return i;
+}" 1

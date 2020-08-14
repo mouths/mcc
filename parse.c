@@ -677,7 +677,7 @@ static Num *inclusive_or_expression(){
 	if(!res)return res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
-	while(c == '|'){
+	while(c == '|' && strncmp(str_pn(input, pos), "||", 2) != 0){
 		Spacing(1);
 		tmp = new_Num(OR);
 		tmp->lhs = res;
@@ -708,6 +708,23 @@ static Num *logical_and_expression(){
 	}
 	return res;
 }
+
+// logical_OR_expression <- logical_AND_expression ('||' logical_AND_expression)*
+static Num *logical_or_expression(){
+	Num *res, *tmp;
+	res = logical_and_expression();
+	if(!res)return NULL;
+	while(strncmp(str_pn(input, pos), "||", 2) == 0){
+		Spacing(2);
+		tmp = new_Num(LOR);
+		tmp->lhs = res;
+		res = tmp;
+		res->rhs = logical_and_expression();
+		res->vtype = new_Typeinfo(TINT);
+		res->i = count_if++;
+	}
+	return res;
+}
 // TODO logical-AND-expression ~ assignment-expression
 
 // assignment_expression <- unary_expression assignment-operator assignment_expression / inclusive_or_expression
@@ -729,7 +746,7 @@ static Num *assignment_expression(){
 	int p = pos;
 	Num *res = unary_expression();
 	Num *tmp;
-	if(!res)return logical_and_expression();
+	if(!res)return logical_or_expression();
 	char *c = str_pn(input, pos);
 	if(strncmp(c, "==", 2)){
 		for(int i = 0; i < 11; i++){
@@ -747,7 +764,7 @@ static Num *assignment_expression(){
 		}
 	}
 	pos = p;
-	return logical_and_expression();
+	return logical_or_expression();
 }
 
 // expression <- inclusive_or_expression
