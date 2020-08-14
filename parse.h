@@ -1,4 +1,5 @@
 #include "tool.h"
+#include "str.h"
 
 #ifndef PARSE_h
 #define PARSE_h
@@ -36,16 +37,17 @@ typedef struct Def{
 	Stmt *Schild;
 	char *name;
 	int idcount;
-	Num *arguments;
+	list *arguments;
 	struct Def *next;
 	list *strlist;
 }Def;
 
-typedef enum{TINT, TCHAR, TPTR, TARRAY} Type;
+typedef enum{TINT, TCHAR, TPTR, TARRAY, TFUNC} Type;
 
 typedef struct Typeinfo{
 	Type type;
 	struct Typeinfo *ptr;
+	list *args;
 	int size;
 } Typeinfo;
 

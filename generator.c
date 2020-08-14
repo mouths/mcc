@@ -434,12 +434,13 @@ void print_def(Def *in){
 		printf("mov %%rsp, %%rbp\n");
 		if(in->idcount)
 			printf("sub $%d, %%rsp\n", in->idcount);
-		int p = 0;
-		for(Num *i = in->arguments; i; i = i->lhs){
-			printf("mov %%%s, %%rax\n", arglist[p++]);
-			printf("mov $%d, %%rbx\n", -i->offset);
+		list *args = in->arguments;
+		for(int i = 0; i < list_len(args); i++){
+			Num *v = list_getn(i, args);
+			printf("mov %%%s, %%rax\n", arglist[i]);
+			printf("mov $%d, %%rbx\n", -v->offset);
 			printf("lea (%%rbp, %%rbx), %%rbx\n");
-			printf("mov %%%cax, (%%rbx)\n", rsize(i, CENTER));
+			printf("mov %%%cax, (%%rbx)\n", rsize(v, CENTER));
 		}
 		print_stmt(in->Schild);
 		if(in->next)print_def(in->next);

@@ -6,6 +6,7 @@
 #include "str.h"
 #include "parse.h"
 #include "tool.h"
+//#include "debug.h"
 
 str *input;
 int pos;
@@ -34,6 +35,19 @@ struct id_container{
 };
 
 typedef enum{DEC_INI, DEC_PTR, DEC_DEC, DEC_DECTOR, DEC_FUN, DEC_ARRAY, DEC_VAR, DEC_PARAM, DEC_TYPE, DEC_DEF} Dectype;
+
+/*
+DEC_INI <-
+DEC_PTR <-() DEC_PTR ()
+DEC_DEC(declaration) <- DEC_TYPE DEC_DECTOR
+DEC_TYPE <-
+DEC_DECTOR <- DEC_PTR ((declaration->)DEC_DECTOR)? (DEC_VAR / DEC_FUN / DEC_ARRAY)
+DEC_VAR <-
+DEC_FUN <- DEC_PARAM
+DEC_ARRAY <-
+DEC_PARAM <- DEC_TYPE DEC_PARAM DEC_DECTOR
+DEC_DEF(function_definition) <- DEC_TYPE DEC_DECTOR
+*/
 
 typedef struct Decs{
 	Dectype type;
@@ -844,18 +858,23 @@ static Stmt *expression_statement(){
 	return res;
 }
 
-static void local_variable_assign(Decs *in){
+static list *local_variable_assign(Decs *in){
 	static Typeinfo *type;
+	static list *res;
 	if(in->type == DEC_DEC){
+		res = list_empty();
 		type = NULL;
 		local_variable_assign(in->lhs);
 		if(in->rhs)local_variable_assign(in->rhs);
+		return res;
 	}else if(in->type == DEC_TYPE){
 		type = in->vtype;
 		//type = new_Typeinfo(TINT);
 	}else if(in->type == DEC_DECTOR){
+		Typeinfo *tmp = type;
 		if(in->lhs)local_variable_assign(in->lhs);
 		local_variable_assign(in->rhs);
+		type = tmp;
 		if(in->next)local_variable_assign(in->next);
 	}else if(in->type == DEC_VAR || in->type == DEC_ARRAY){
 		if(in->type == DEC_ARRAY){
@@ -874,10 +893,20 @@ static void local_variable_assign(Decs *in){
 		}else
 			con->offset = list_map_sum(count_id_offset, idlist) + type->size;
 		list_append(con, idlist);
+		list_append(con->name, res);
 	}else if(in->type == DEC_PTR){
 		Typeinfo *tmp = new_Typeinfo(TPTR);
 		tmp->ptr = type;
 		type = tmp;
+		if(in->next)local_variable_assign(in->next);
+	}else if(in->type == DEC_PARAM){
+		res = list_empty();
+		for(Decs *it = in; it; it = it->next){
+			type = NULL;
+			local_variable_assign(it->lhs);
+			local_variable_assign(it->rhs);
+		}
+		return res;
 	}else{
 		fprintf(stderr, "dec no:%d\n", in->type);
 		error("local_variable_assign:undefined");
@@ -1224,12 +1253,12 @@ static void assign_function(Decs *in, Def *func){
 	static Num *tmp;
 	if(in->type == DEC_DEF){
 		type = NULL;
-		func->arguments = NULL;
+		func->arguments = list_empty();
 		assign_function(in->lhs, func);
 		assign_function(in->rhs, func);
 	}else if(in->type == DEC_TYPE){
-		type = in->vtype;
-		//type = new_Typeinfo(TINT);
+		type = new_Typeinfo(TFUNC);
+		type->ptr = in->vtype;
 	}else if(in->type == DEC_DECTOR){
 		// set pointer
 		if(in->lhs)assign_function(in->lhs, func);
@@ -1237,9 +1266,11 @@ static void assign_function(Decs *in, Def *func){
 		assign_function(in->rhs, func);
 	}else if(in->type == DEC_FUN){
 		struct id_container *con = new_container(), *result;
+		if(in->lhs)assign_function(in->lhs, func);
 		con->name = in->name;
 		result = list_search(con, id_container_cmp, gidlist);
 		if(result){
+			error("prototype is not implemented");
 			if(result->type)error("assign_function:redeclaration function");
 			result->type = type;
 		}else{
@@ -1247,23 +1278,19 @@ static void assign_function(Decs *in, Def *func){
 			list_append(con, gidlist);
 		}
 		func->name = con->name;
-		if(in->lhs)assign_function(in->lhs, func);
 	}else if(in->type == DEC_PARAM){
-		type = NULL;
-		// register type of local variable
-		local_variable_assign(in->lhs);
-		// register identifier as local variable
-		local_variable_assign(in->rhs);
-		if(!tmp){
-			tmp = func->arguments = new_Num(ID);
-		}else{
-			tmp = tmp->lhs = new_Num(ID);
+		type->args = list_empty();
+		struct id_container *con = new_container(), *result;
+		list *varlist = local_variable_assign(in);
+		for(int i = 0; i < list_len(varlist); i++){
+			Num *n = new_Num(ID);
+			con->name = list_getn(i, varlist);
+			result = list_search(con, id_container_cmp, idlist);
+			n->offset = result->offset;
+			n->vtype = result->type;
+			list_append(n, func->arguments);
+			list_append(result->type, type->args);
 		}
-		tmp->name = in->rhs->rhs->name;
-		struct id_container *con = list_getn(list_len(idlist) - 1, idlist);
-		tmp->offset = con->offset;
-		tmp->vtype = con->type;
-		if(in->next)assign_function(in->next, func);
 	}else{
 		fprintf(stderr, "%d\n", in->type);
 		error("assign_function:undefined");
@@ -1336,10 +1363,12 @@ static Def *global_variable_assign(Decs *in){
 static Def *external_declaration(){
 	Def *res = NULL;
 	Decs *dec = declaration();
+	// global variable / prototype declaration
 	if(dec){
 		res = global_variable_assign(dec);
 		return res;
 	}
+	// function definition
 	res = function_definition();
 	return res;
 }
