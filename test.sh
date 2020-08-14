@@ -280,3 +280,10 @@ int main(){
 	i || (i += 1) || (i += 5);
 	return i;
 }" 1
+try "
+int fib(int n){
+	return n <= 1 ? 1 : fib(n - 1) + fib(n - 2);
+}
+int main(){
+	return fib(6);
+}" 13

@@ -7,12 +7,12 @@
 #define PTR_SIZE 8
 #define CHAR_SIZE 1
 
-typedef enum{NUM, ADD, SUB, MUL, DIV, MOD, PLUS, MINUS, LES, GRT, LEQ, GEQ, EQ, NEQ, AND, XOR, OR, AS, MULAS, DIVAS, MODAS, ADDAS, SUBAS, LSAS, RSAS, LAAS, LXAS, LOAS, ID, CALL, PTR, DEREF, ARG, GVAR, STR, LAND, LOR} Ntype;
+typedef enum{NUM, ADD, SUB, MUL, DIV, MOD, PLUS, MINUS, LES, GRT, LEQ, GEQ, EQ, NEQ, AND, XOR, OR, AS, MULAS, DIVAS, MODAS, ADDAS, SUBAS, LSAS, RSAS, LAAS, LXAS, LOAS, ID, CALL, PTR, DEREF, ARG, GVAR, STR, LAND, LOR, COND} Ntype;
 
 typedef struct Num{
 	Ntype type;
 	int i;
-	struct Num *lhs, *rhs;
+	struct Num *lhs, *rhs, *center;
 	int offset;
 	char *name;
 	//int ptr;

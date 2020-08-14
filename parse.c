@@ -725,9 +725,32 @@ static Num *logical_or_expression(){
 	}
 	return res;
 }
+
+// conditional_expression <- logical_or_expression ('?' expression ':' conditional_expression)?
+static Num *conditional_expression(){
+	Num *res, *tmp;
+	res = logical_or_expression();
+	if(!res)return NULL;
+	char c = str_getchar(input, pos);
+	if(c == '?'){
+		Spacing(1);
+		tmp = new_Num(COND);
+		tmp->lhs = res;
+		res = tmp;
+		res->center = expression();
+		c = str_getchar(input, pos);
+		if(c != ':')
+			error("conditional_expression:missing ':'");
+		Spacing(1);
+		res->i = count_if++;
+		res->rhs = conditional_expression();
+	}
+	return res;
+}
+
 // TODO logical-AND-expression ~ assignment-expression
 
-// assignment_expression <- unary_expression assignment-operator assignment_expression / inclusive_or_expression
+// assignment_expression <- unary_expression assignment-operator assignment_expression / conditional_expression
 // assignment-operator <- '=' / '*=' / '/=' / '%=' / '+=' / '-=' / '<<=' / '>>=' / '&=' / '^=' / '|='
 static Num *assignment_expression(){
 	const struct oplist ops[11] = {
@@ -746,7 +769,7 @@ static Num *assignment_expression(){
 	int p = pos;
 	Num *res = unary_expression();
 	Num *tmp;
-	if(!res)return logical_or_expression();
+	if(!res)return conditional_expression();
 	char *c = str_pn(input, pos);
 	if(strncmp(c, "==", 2)){
 		for(int i = 0; i < 11; i++){
@@ -764,7 +787,7 @@ static Num *assignment_expression(){
 		}
 	}
 	pos = p;
-	return logical_or_expression();
+	return conditional_expression();
 }
 
 // expression <- inclusive_or_expression

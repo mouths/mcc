@@ -331,6 +331,16 @@ static void print_num(Num *in){
 		printf("movzb %%al, %%rax\n");
 		printf(".Liend%d:\n", in->i);
 		printf("push %%rax\n");
+	}else if(in->type == COND){
+		print_num(in->lhs);
+		printf("pop %%rax\n");
+		printf("cmp $0, %%rax\n");
+		printf("je .Lielse%d\n", in->i);
+		print_num(in->center);
+		printf("jmp .Liend%d\n", in->i);
+		printf(".Lielse%d:\n", in->i);
+		print_num(in->rhs);
+		printf(".Liend%d:\n", in->i);
 	}else{
 		fprintf(stderr, "%d\n", in->type);
 		error("print_num:undefined");
