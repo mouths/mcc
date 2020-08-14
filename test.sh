@@ -287,3 +287,12 @@ int fib(int n){
 int main(){
 	return fib(6);
 }" 13
+try "
+int printf();
+int fib(int n){
+	return n <= 1 ? 1 : fib(n - 1) + fib(n - 2);
+}
+int main(){
+	printf(\"fib(5) = %d\\n\", fib(5));
+	return 0;
+}" 0

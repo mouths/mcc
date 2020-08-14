@@ -444,9 +444,11 @@ void print_def(Def *in){
 		print_stmt(in->Schild);
 		if(in->next)print_def(in->next);
 	}else if(in->type == GVDEF){
-		printf(".data\n");
-		printf("%s:\n", in->name);
-		printf(".zero %d\n", in->idcount);
+		if(in->name){
+			printf(".data\n");
+			printf("%s:\n", in->name);
+			printf(".zero %d\n", in->idcount);
+		}
 		if(in->next)print_def(in->next);
 	}else{
 		error("print_def");

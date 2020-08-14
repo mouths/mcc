@@ -1226,12 +1226,16 @@ static void assign_function(Decs *in, Def *func){
 		// registratino functino name
 		assign_function(in->rhs, func);
 	}else if(in->type == DEC_FUN){
-		struct id_container *con = new_container();
+		struct id_container *con = new_container(), *result;
 		con->name = in->name;
-		if(list_search(con, id_container_cmp, gidlist))
-			error("assign_function:redeclaration function");
-		con->type = type;
-		list_append(con, gidlist);
+		result = list_search(con, id_container_cmp, gidlist);
+		if(result){
+			if(result->type)error("assign_function:redeclaration function");
+			result->type = type;
+		}else{
+			con->type = type;
+			list_append(con, gidlist);
+		}
 		func->name = con->name;
 		if(in->lhs)assign_function(in->lhs, func);
 	}else if(in->type == DEC_PARAM){
@@ -1247,7 +1251,6 @@ static void assign_function(Decs *in, Def *func){
 		}
 		tmp->name = in->rhs->rhs->name;
 		struct id_container *con = list_getn(list_len(idlist) - 1, idlist);
-		fprintf(stderr, "%d\n", con->offset);
 		tmp->offset = con->offset;
 		tmp->vtype = con->type;
 		if(in->next)assign_function(in->next, func);
@@ -1306,6 +1309,12 @@ static Def *global_variable_assign(Decs *in){
 			res->idcount = type->ptr->size * in->size;
 		else
 			res->idcount = type->size;
+	}else if(in->type == DEC_FUN){
+		struct id_container *con = new_container();
+		con->name = in->name;
+		if(!list_search(con, id_container_cmp, gidlist))
+			list_append(con, gidlist);
+		res = new_Def(GVDEF);
 	}else{
 		fprintf(stderr, "dec no:%d\n", in->type);
 		error("global_variable_assign:undefined");
