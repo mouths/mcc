@@ -146,6 +146,16 @@ static void consume_whitespace(){
 		  ){
 			pos++;
 			continue;
+		}else if(strncmp(str_pn(input, pos), "//", 2) == 0){
+			pos += 2;
+			while((c = str_getchar(input, pos)) != '\n' && c != '\0')pos++;
+			pos++;
+			continue;
+		}else if(strncmp(str_pn(input, pos), "/*", 2) == 0){
+			pos += 2;
+			while(strncmp(str_pn(input, pos), "*/", 2) != 0)pos++;
+			pos += 2;
+			continue;
 		}
 		break;
 	}

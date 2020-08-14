@@ -296,3 +296,11 @@ int main(){
 	printf(\"fib(5) = %d\\n\", fib(5));
 	return 0;
 }" 0
+try "
+int main(){
+	// comment
+	/*
+	comment
+	*/
+	return /* 3 */ 0;
+} //comment" 0
