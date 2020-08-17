@@ -1,5 +1,6 @@
 #include "tool.h"
 #include "str.h"
+#include "environment.h"
 
 #ifndef PARSE_h
 #define PARSE_h
@@ -40,6 +41,7 @@ typedef struct Def{
 	list *arguments;
 	struct Def *next;
 	list *strlist;
+	env *env;
 }Def;
 
 typedef enum{TINT, TCHAR, TPTR, TARRAY, TFUNC} Type;

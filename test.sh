@@ -2,10 +2,11 @@
 
 CC=gcc
 try(){
-	echo "$1" | ../mcc > ./out.S
-	${CC} -g -c ./out.S
-	${CC} -g -static -o ./out.out ./test.o ./out.o
-	./out.out
+	echo "$1" > ./tmp.c
+	echo "$1" | ../mcc > ./tmp.S
+	${CC} -g -c ./tmp.S
+	${CC} -g -static -o ./tmp.out ./test.o ./tmp.o
+	./tmp.out
 	RES=`echo $?`
 	if [ "$RES" == "$2" ]; then
 		echo "pass:\"$1\" -> $RES"

@@ -6,12 +6,11 @@
 #include "str.h"
 #include "parse.h"
 #include "tool.h"
+#include "environment.h"
 //#include "debug.h"
 
 str *input;
 int pos;
-list *idlist;
-list *gidlist;
 list *strlist;
 int count_if;
 int count_loop;
@@ -57,6 +56,10 @@ typedef struct Decs{
 	char *name;
 	int size;
 }Decs;
+
+static int id_container_cmp(const void *a, const void *b){
+	return strcmp(((struct id_container*)a)->name, ((struct id_container*)b)->name);
+}
 
 static Decs *new_Decs(Dectype t){
 	Decs *res = malloc(sizeof(Decs));
@@ -131,6 +134,25 @@ static Num *new_Num(Ntype t){
 	res->name = NULL;
 	res->size = 1;
 	res->vtype = NULL;
+	return res;
+}
+
+static Num *new_Var(char *name, env *env){
+	if(env == NULL){
+		error("new_Var:undefined variable");
+		fprintf(stderr, "var:%s\n", name);
+	}
+	struct id_container con = {.name = name}, *tmp;
+	tmp = list_search(&con, id_container_cmp, env->var_list);
+	Num *res;
+	if(!tmp){
+		res = new_Var(name, env->outer);
+	}else{
+		res = new_Num(ID);
+		res->offset = tmp->offset;
+		res->vtype = tmp->type;
+		res->name = name;
+	}
 	return res;
 }
 
@@ -308,7 +330,7 @@ static int count_id_offset(void *in){
 }
 
 //  constant <- digit+
-static Num *constant(){
+static Num *constant(env *env){
 	char c = str_getchar(input, pos);
 	Num *res;
 	if(digit()){
@@ -328,12 +350,8 @@ static Num *constant(){
 	return NULL;
 }
 
-static int id_container_cmp(const void *a, const void *b){
-	return strcmp(((struct id_container*)a)->name, ((struct id_container*)b)->name);
-}
-
 // identifier <- !keyword nondigit (nondigit / digit)*
-static Num *identifier(){
+static Num *identifier(env *env){
 	Num *res;
 	int i = is_identifier();
 	struct id_container *con, *tmp;
@@ -341,7 +359,7 @@ static Num *identifier(){
 		con = malloc(sizeof(struct id_container));
 		con->name = name_copy(i);
 		res = new_Num(ID);
-		tmp = list_search(con, id_container_cmp, idlist);
+		tmp = list_search(con, id_container_cmp, env->var_list);
 		if(tmp){
 			res->offset = tmp->offset;
 			res->vtype = tmp->type;
@@ -351,7 +369,7 @@ static Num *identifier(){
 			Spacing(i);
 			return res;
 		}
-		tmp = list_search(con, id_container_cmp, gidlist);
+		tmp = list_search(con, id_container_cmp, env->outer->var_list);
 		if(tmp){
 			res->type = GVAR;
 			res->name = con->name;
@@ -361,7 +379,6 @@ static Num *identifier(){
 			Spacing(i);
 			return res;
 		}
-		list_map(print_container, gidlist);
 		error("identifier:undefined variable");
 	}
 	return NULL;
@@ -417,13 +434,13 @@ static int register_strlit(char *lit){
 }
 
 // string_literal <- '"' s_char_sequence?  '"'
-static Num *string_literal(){
+static Num *string_literal(env *env){
 	char c = str_getchar(input, pos);
 	Num *res = NULL;
 	if(c == '"'){
 		res = new_Num(STR);
 		pos++;
-		int len = s_char_sequence();
+		int len = s_char_sequence(env);
 		res->i = register_strlit(name_copy(len));
 		pos += len;
 		if(str_getchar(input, pos) != '"')
@@ -433,17 +450,17 @@ static Num *string_literal(){
 	return res;
 }
 
-static Num *expression();
+static Num *expression(env *env);
 // primary_expression <- constant / identifier / ( expression )
-static Num *primary_expression(){
+static Num *primary_expression(env *env){
 	Num *res;
-	if((res = constant()))return res;
-	if((res = identifier()))return res;
-	if((res = string_literal()))return res;
+	if((res = constant(env)))return res;
+	if((res = identifier(env)))return res;
+	if((res = string_literal(env)))return res;
 	char c = str_getchar(input, pos);
 	if(c == '('){
 		Spacing(1);
-		res = expression();
+		res = expression(env);
 		if(res == NULL)error("primary_expression:( expression )");
 		c = str_getchar(input, pos);
 		if(c != ')')error("primary_expression:missing )");
@@ -453,11 +470,11 @@ static Num *primary_expression(){
 	return NULL;
 }
 
-static Num *assignment_expression();
+static Num *assignment_expression(env *env);
 // argument_expression_list <- assignment_expression (',' assignment_expression)*
-static Num *argument_expression_list(){
+static Num *argument_expression_list(env *env){
 	Num *res, *tmp;
-	if((tmp = assignment_expression()) == NULL)
+	if((tmp = assignment_expression(env)) == NULL)
 		return NULL;
 	res = new_Num(ARG);
 	res->rhs = tmp;
@@ -467,7 +484,7 @@ static Num *argument_expression_list(){
 	while(c == ','){
 		Spacing(1);
 		tmp = tmp->lhs = new_Num(ARG);
-		if((tmp->rhs = assignment_expression()) == NULL)
+		if((tmp->rhs = assignment_expression(env)) == NULL)
 			error("argument_expression_list:missing argument");
 		c = str_getchar(input, pos);
 	}
@@ -475,13 +492,13 @@ static Num *argument_expression_list(){
 }
 
 // postfix_expression <- primary_expression ('(' argument_expression_list? ')' / '[' expression ']')?
-static Num *postfix_expression(){
-	Num *res = primary_expression(), *tmp;
+static Num *postfix_expression(env *env){
+	Num *res = primary_expression(env), *tmp;
 	if(!res)return res;
 	char c = str_getchar(input, pos);
 	if(c == '('){
 		Spacing(1);
-		res->lhs = argument_expression_list();
+		res->lhs = argument_expression_list(env);
 		c = str_getchar(input, pos);
 		if(c != ')')error("postfix_expression:missing ')'");
 		Spacing(1);
@@ -490,7 +507,7 @@ static Num *postfix_expression(){
 		Spacing(1);
 		tmp = new_Num(ADD);
 		tmp->lhs = res;
-		tmp->rhs = expression();
+		tmp->rhs = expression(env);
 		if(tmp->lhs->vtype->type == TPTR
 				|| tmp->lhs->vtype->type == TARRAY)
 			tmp->vtype = tmp->lhs->vtype;
@@ -506,15 +523,15 @@ static Num *postfix_expression(){
 	return res;
 }
 
-static Num *unary_expression();
+static Num *unary_expression(env *env);
 // cast_expression <- unary_expression
-static Num *cast_expression(){
-	return unary_expression();
+static Num *cast_expression(env *env){
+	return unary_expression(env);
 }
 
 // unary_expression <- 'sizeof' unary_expression / unary-operator? postfix_expression
 // unary-operator <- '+' / '-' / '&' / '*'
-static Num *unary_expression(){
+static Num *unary_expression(env *env){
 	Num *res, *tmp;
 	char c = str_getchar(input, pos);
 	if(c == '+' || c == '-' || c == '&' || c == '*'){
@@ -533,7 +550,7 @@ static Num *unary_expression(){
 				res = new_Num(DEREF);
 				break;
 		}
-		res->lhs = cast_expression();
+		res->lhs = cast_expression(env);
 		res->vtype = res->lhs->vtype;
 		if(c == '*'){
 			if(!(res->lhs->vtype->type == TPTR
@@ -547,7 +564,7 @@ static Num *unary_expression(){
 		return res;
 	}else if(strncmp(str_pn(input, pos), "sizeof", 6) == 0 && keyword() >= 0){
 		Spacing(6);
-		tmp = unary_expression();
+		tmp = unary_expression(env);
 		res = new_Num(NUM);
 		if(tmp->vtype->type == TARRAY)
 			res->i = tmp->size * tmp->vtype->ptr->size;
@@ -556,13 +573,13 @@ static Num *unary_expression(){
 		res->vtype = new_Typeinfo(TINT);
 		return res;
 	}
-	res = postfix_expression();
+	res = postfix_expression(env);
 	return res;
 }
 
 // multiplicative_expression <- unary_expression (('*' / '-' / '%') unary_expression)*
-static Num *multiplicative_expression(){
-	Num *res = unary_expression();
+static Num *multiplicative_expression(env *env){
+	Num *res = unary_expression(env);
 	if(!res)return res;
 	char c = str_getchar(input, pos);
 	while(c == '*' || c == '/' || c == '%'){
@@ -581,7 +598,7 @@ static Num *multiplicative_expression(){
 		Spacing(1);
 		tmp->lhs = res;
 		res = tmp;
-		res->rhs = unary_expression();
+		res->rhs = unary_expression(env);
 		if(res->lhs->vtype->size >
 				res->rhs->vtype->size){
 			res->vtype = res->lhs->vtype;
@@ -595,8 +612,8 @@ static Num *multiplicative_expression(){
 }
 
 // additive_expression <- multiplicative_expression (('+' / '-') multiplicative_expression)*
-static Num *additive_expression(){
-	Num *res = multiplicative_expression();
+static Num *additive_expression(env *env){
+	Num *res = multiplicative_expression(env);
 	if(!res)return res;
 	char c = str_getchar(input, pos);
 	while(c == '+' || c == '-'){
@@ -604,7 +621,7 @@ static Num *additive_expression(){
 		tmp->lhs = res;
 		res = tmp;
 		Spacing(1);
-		res->rhs = multiplicative_expression();
+		res->rhs = multiplicative_expression(env);
 		if(res->lhs->vtype->type == TPTR ||
 				res->lhs->vtype->type == TARRAY){
 			res->vtype = new_Typeinfo(TPTR);
@@ -631,8 +648,8 @@ static Num *additive_expression(){
 
 // relational_expression <- additive_expression (relational-operator additive_expression)*
 // relational-operator <- '<=' / '>=' / '<' / '>'
-static Num *relational_expression(){
-	Num *res = additive_expression();
+static Num *relational_expression(env *env){
+	Num *res = additive_expression(env);
 	if(!res)return res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
@@ -647,7 +664,7 @@ static Num *relational_expression(){
 			pos++;
 		}
 		Spacing(0);
-		tmp->rhs = additive_expression();
+		tmp->rhs = additive_expression(env);
 		res = tmp;
 		res->vtype = new_Typeinfo(TINT);
 		c = str_getchar(input, pos);
@@ -656,8 +673,8 @@ static Num *relational_expression(){
 }
 
 // equality_expression <- relational_expression (('==' / '!=') relational_expression)*
-static Num *equality_expression(){
-	Num *res = relational_expression();
+static Num *equality_expression(env *env){
+	Num *res = relational_expression(env);
 	if(!res)return res;
 	Num *tmp;
 	char *c = str_pn(input, pos);
@@ -667,7 +684,7 @@ static Num *equality_expression(){
 		else tmp = new_Num(EQ);
 		tmp->lhs = res;
 		res = tmp;
-		res->rhs = relational_expression();
+		res->rhs = relational_expression(env);
 		res->vtype = new_Typeinfo(TINT);
 		c = str_pn(input, pos);
 	}
@@ -675,8 +692,8 @@ static Num *equality_expression(){
 }
 
 // AND_expression <- equality_expression ('&' equlity_expression)*
-static Num *and_expression(){
-	Num *res = equality_expression();
+static Num *and_expression(env *env){
+	Num *res = equality_expression(env);
 	if(!res)return res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
@@ -685,7 +702,7 @@ static Num *and_expression(){
 		tmp = new_Num(AND);
 		tmp->lhs = res;
 		res = tmp;
-		res->rhs = equality_expression();
+		res->rhs = equality_expression(env);
 		if(res->lhs->vtype->size > res->rhs->vtype->size)
 			res->vtype = res->lhs->vtype;
 		else
@@ -696,8 +713,8 @@ static Num *and_expression(){
 }
 
 // exclusive_OR_expression <- AND_expression ('^' AND_expression)*
-static Num *exclusive_or_expression(){
-	Num *res = and_expression();
+static Num *exclusive_or_expression(env *env){
+	Num *res = and_expression(env);
 	if(!res)return res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
@@ -706,7 +723,7 @@ static Num *exclusive_or_expression(){
 		tmp = new_Num(XOR);
 		tmp->lhs = res;
 		res = tmp;
-		res->rhs = and_expression();
+		res->rhs = and_expression(env);
 		if(res->lhs->vtype->size > res->rhs->vtype->size)
 			res->vtype = res->lhs->vtype;
 		else
@@ -717,8 +734,8 @@ static Num *exclusive_or_expression(){
 }
 
 // inclusive_OR_expression <- exclusive_OR_expression ('|' exclusive_OR_expression)*
-static Num *inclusive_or_expression(){
-	Num *res = exclusive_or_expression();
+static Num *inclusive_or_expression(env *env){
+	Num *res = exclusive_or_expression(env);
 	if(!res)return res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
@@ -727,7 +744,7 @@ static Num *inclusive_or_expression(){
 		tmp = new_Num(OR);
 		tmp->lhs = res;
 		res = tmp;
-		res->rhs = exclusive_or_expression();
+		res->rhs = exclusive_or_expression(env);
 		if(res->lhs->vtype->size > res->rhs->vtype->size)
 			res->vtype = res->lhs->vtype;
 		else
@@ -738,16 +755,16 @@ static Num *inclusive_or_expression(){
 }
 
 // logical_AND_expression <- inclusive_OR_expression ('&&' inclusive_OR_expression)*
-static Num *logical_and_expression(){
+static Num *logical_and_expression(env *env){
 	Num *res, *tmp;
-	res = inclusive_or_expression();
+	res = inclusive_or_expression(env);
 	if(!res)return NULL;
 	while(strncmp(str_pn(input, pos), "&&", 2) == 0){
 		Spacing(2);
 		tmp = new_Num(LAND);
 		tmp->lhs = res;
 		res = tmp;
-		res->rhs = inclusive_or_expression();
+		res->rhs = inclusive_or_expression(env);
 		res->vtype = new_Typeinfo(TINT);
 		res->i = count_if++;
 	}
@@ -755,16 +772,16 @@ static Num *logical_and_expression(){
 }
 
 // logical_OR_expression <- logical_AND_expression ('||' logical_AND_expression)*
-static Num *logical_or_expression(){
+static Num *logical_or_expression(env *env){
 	Num *res, *tmp;
-	res = logical_and_expression();
+	res = logical_and_expression(env);
 	if(!res)return NULL;
 	while(strncmp(str_pn(input, pos), "||", 2) == 0){
 		Spacing(2);
 		tmp = new_Num(LOR);
 		tmp->lhs = res;
 		res = tmp;
-		res->rhs = logical_and_expression();
+		res->rhs = logical_and_expression(env);
 		res->vtype = new_Typeinfo(TINT);
 		res->i = count_if++;
 	}
@@ -772,9 +789,9 @@ static Num *logical_or_expression(){
 }
 
 // conditional_expression <- logical_or_expression ('?' expression ':' conditional_expression)?
-static Num *conditional_expression(){
+static Num *conditional_expression(env *env){
 	Num *res, *tmp;
-	res = logical_or_expression();
+	res = logical_or_expression(env);
 	if(!res)return NULL;
 	char c = str_getchar(input, pos);
 	if(c == '?'){
@@ -782,13 +799,13 @@ static Num *conditional_expression(){
 		tmp = new_Num(COND);
 		tmp->lhs = res;
 		res = tmp;
-		res->center = expression();
+		res->center = expression(env);
 		c = str_getchar(input, pos);
 		if(c != ':')
 			error("conditional_expression:missing ':'");
 		Spacing(1);
 		res->i = count_if++;
-		res->rhs = conditional_expression();
+		res->rhs = conditional_expression(env);
 	}
 	return res;
 }
@@ -797,7 +814,7 @@ static Num *conditional_expression(){
 
 // assignment_expression <- unary_expression assignment-operator assignment_expression / conditional_expression
 // assignment-operator <- '=' / '*=' / '/=' / '%=' / '+=' / '-=' / '<<=' / '>>=' / '&=' / '^=' / '|='
-static Num *assignment_expression(){
+static Num *assignment_expression(env *env){
 	const struct oplist ops[11] = {
 		{"=", 1, AS},
 		{"*=", 2, MULAS},
@@ -812,9 +829,9 @@ static Num *assignment_expression(){
 		{"|=", 2, LOAS},
 	};
 	int p = pos;
-	Num *res = unary_expression();
+	Num *res = unary_expression(env);
 	Num *tmp;
-	if(!res)return conditional_expression();
+	if(!res)return conditional_expression(env);
 	char *c = str_pn(input, pos);
 	if(strncmp(c, "==", 2)){
 		for(int i = 0; i < 11; i++){
@@ -825,30 +842,30 @@ static Num *assignment_expression(){
 				tmp->lhs = res;
 				res = tmp;
 				res->vtype = res->lhs->vtype;
-				if(!(res->rhs = assignment_expression()))
+				if(!(res->rhs = assignment_expression(env)))
 					error("assignment_expression:rhs is NULL");
 				return res;
 			}
 		}
 	}
 	pos = p;
-	return conditional_expression();
+	return conditional_expression(env);
 }
 
 // expression <- inclusive_or_expression
-static Num *expression(){
-	return assignment_expression();
+static Num *expression(env *env){
+	return assignment_expression(env);
 }
 
-static Stmt *statement();
+static Stmt *statement(env *env);
 // jump_statement <- 'return' expression^opt ';'
-static Stmt *jump_statement(){
+static Stmt *jump_statement(env *env){
 	char *c = str_pn(input, pos);
 	Stmt *res;
 	if(strncmp(c, "return", 6) == 0){
 		Spacing(6);
 		res = new_Stmt(RET);
-		res->Nchild = expression();
+		res->Nchild = expression(env);
 		c = str_pn(input, pos);
 		if(*c != ';'){
 			error("jump-statement: no semicoron");
@@ -860,11 +877,11 @@ static Stmt *jump_statement(){
 }
 
 // expression_statement <- expression^opt ';'
-static Stmt *expression_statement(){
+static Stmt *expression_statement(env *env){
 	Stmt *res;
 	Num *tmp;
 	char c = str_getchar(input, pos);
-	tmp = expression();
+	tmp = expression(env);
 	c = str_getchar(input, pos);
 	if(c != ';'){
 		if(tmp){
@@ -879,71 +896,82 @@ static Stmt *expression_statement(){
 	return res;
 }
 
-static list *local_variable_assign(Decs *in){
+static list *make_type(Decs *);
+static void variable_assign(Decs *in, env *env){
 	static Typeinfo *type;
-	static list *res;
-	if(in->type == DEC_DEC){
-		res = list_empty();
-		type = NULL;
-		local_variable_assign(in->lhs);
-		if(in->rhs)local_variable_assign(in->rhs);
-		return res;
+	if(in->type == DEC_DEC || in->type == DEC_PARAM){
+		Typeinfo *tmp = type;
+		variable_assign(in->lhs, env);
+		variable_assign(in->rhs, env);
 	}else if(in->type == DEC_TYPE){
 		type = in->vtype;
-		//type = new_Typeinfo(TINT);
 	}else if(in->type == DEC_DECTOR){
 		Typeinfo *tmp = type;
-		if(in->lhs)local_variable_assign(in->lhs);
-		local_variable_assign(in->rhs);
+		if(in->lhs)variable_assign(in->lhs, env);
+		variable_assign(in->rhs, env);
 		type = tmp;
-		if(in->next)local_variable_assign(in->next);
+		if(in->next)variable_assign(in->next, env);
 	}else if(in->type == DEC_VAR || in->type == DEC_ARRAY){
-		if(in->type == DEC_ARRAY){
-			Typeinfo *tmp = new_Typeinfo(TARRAY);
-			tmp->ptr = type;
-			type = tmp;
-		}
-		struct id_container *con = new_container();
+		struct id_container *con = new_container(), *tmp;
+		Typeinfo *ttmp = type;
 		con->name = in->name;
-		if(list_search(con, id_container_cmp, idlist))
-			error("local_variable_assign:redeclaration");
+		tmp = list_search(con, id_container_cmp, env->var_list);
+		if(tmp)
+			error("variable_assign:redeclaration");
+		if(in->type == DEC_ARRAY){
+			ttmp = new_Typeinfo(TARRAY);
+			ttmp->ptr = type;
+			type = ttmp;
+		}
 		con->type = type;
+		con->defined = true;
+		tmp = list_getn(list_len(env->var_list) - 1, env->var_list);
 		if(in->type == DEC_ARRAY){
 			con->size = in->size;
-			con->offset = list_map_sum(count_id_offset, idlist) + type->ptr->size * con->size;
-		}else
-			con->offset = list_map_sum(count_id_offset, idlist) + type->size;
-		list_append(con, idlist);
-		list_append(con->name, res);
+			if(tmp)
+				con->offset = tmp->offset + con->type->size * con->size;
+			else
+				con->offset = con->type->size * con->size;
+		}else{
+			if(tmp)
+				con->offset = tmp->offset + con->type->size;
+			else
+				con->offset = con->type->size;
+		}
+		list_append(con, env->var_list);
 	}else if(in->type == DEC_PTR){
 		Typeinfo *tmp = new_Typeinfo(TPTR);
 		tmp->ptr = type;
 		type = tmp;
-		if(in->next)local_variable_assign(in->next);
-	}else if(in->type == DEC_PARAM){
-		res = list_empty();
-		for(Decs *it = in; it; it = it->next){
-			type = NULL;
-			local_variable_assign(it->lhs);
-			local_variable_assign(it->rhs);
-		}
-		return res;
+		if(in->next)variable_assign(in->next, env);
+	}else if(in->type == DEC_FUN){
+		struct id_container *con = new_container();
+		Typeinfo *tmp = new_Typeinfo(TFUNC);
+		tmp->ptr = type;
+		type = tmp;
+		// DEC_PARAM
+		if(in->lhs)
+			type->args = make_type(in->lhs);
+		con->name = in->name;
+		con->type = type;
+		if(!list_search(con, id_container_cmp, env->var_list))
+			list_append(con, env->var_list);
 	}else{
 		fprintf(stderr, "dec no:%d\n", in->type);
-		error("local_variable_assign:undefined");
+		error("variable_assign:undefined");
 	}
 }
 
 static Decs *declaration();
 // block_item <- statement / declaration
-static Stmt *block_item(){
+static Stmt *block_item(env *env){
 	Stmt *res, *tmp = NULL;
 	Decs *dec = NULL;
-	if((dec = declaration())){
+	if((dec = declaration(env))){
 		tmp = new_Stmt(EXP);
-		local_variable_assign(dec);
+		variable_assign(dec, env);
 	}
-	if(!tmp)tmp = statement();
+	if(!tmp)tmp = statement(env);
 	if(!tmp)return NULL;
 	res = new_Stmt(ITEM);
 	res->rhs = tmp;
@@ -951,30 +979,30 @@ static Stmt *block_item(){
 }
 
 // block_item_list <- block_item+
-static Stmt *block_item_list(){
-	Stmt *res = block_item();
+static Stmt *block_item_list(env *env){
+	Stmt *res = block_item(env);
 	if(!res)return res;
 	Stmt *tmp = res;
-	while((tmp->lhs = block_item()))tmp = tmp->lhs;
+	while((tmp->lhs = block_item(env)))tmp = tmp->lhs;
 	return res;
 }
 
 // compound_statement <- '{' block_item_list^opt '}'
-static Stmt *compound_statement(){
+static Stmt *compound_statement(env *env){
 	char c = str_getchar(input, pos);
 	Stmt *res;
 	if(c != '{')return NULL;
 	Spacing(1);
 	res = new_Stmt(CPD);
-	res->rhs = block_item_list();
+	res->rhs = block_item_list(env);
 	c = str_getchar(input, pos);
-	if(c != '}')error("compound-statement");
+	if(c != '}')error("compound-statement:missing '}'");
 	Spacing(1);
 	return res;
 }
 
 // selection_statement <- 'if' '(' expression ')' statement ('else' statement)?
-static Stmt *selection_statement(){
+static Stmt *selection_statement(env *env){
 	Stmt *res = NULL;
 	if(try_input("if")){
 		Spacing(2);
@@ -983,14 +1011,14 @@ static Stmt *selection_statement(){
 		Spacing(1);
 		res = new_Stmt(IF);
 		res->count = count_if++;
-		res->Nchild = expression();
+		res->Nchild = expression(env);
 		if(str_getchar(input, pos) != ')')
 			error("selection_statement:missing ')'");
 		Spacing(1);
-		res->lhs = statement();
+		res->lhs = statement(env);
 		if(try_input("else")){
 			Spacing(4);
-			res->rhs = statement();
+			res->rhs = statement(env);
 		}
 	}
 	return res;
@@ -999,7 +1027,7 @@ static Stmt *selection_statement(){
 // iteration_statement <-
 //		'while' '(' expression ')' statement /
 //		'do' statement 'while' '(' expression ')' ';'
-static Stmt *iteration_statement(){
+static Stmt *iteration_statement(env *env){
 	Stmt *res = NULL;
 	if(try_input("while")){
 		Spacing(5);
@@ -1007,23 +1035,23 @@ static Stmt *iteration_statement(){
 		if(str_getchar(input, pos) != '(')
 			error("iteration_statement:while:missing '('");
 		Spacing(1);
-		res->Nchild = expression();
+		res->Nchild = expression(env);
 		if(str_getchar(input, pos) != ')')
 			error("iteration_statement:while:missing '('");
 		Spacing(1);
-		res->rhs = statement();
+		res->rhs = statement(env);
 		res->count = count_loop++;
 	}else if(try_input("do")){
 		Spacing(2);
 		res = new_Stmt(WHILE);
-		res->lhs = statement();
+		res->lhs = statement(env);
 		if(!try_input("while"))
 			error("iteration_statement:do:missing 'while'");
 		Spacing(5);
 		if(str_getchar(input, pos) != '(')
 			error("iteration_statement:do:missing '('");
 		Spacing(1);
-		res->Nchild = expression();
+		res->Nchild = expression(env);
 		if(str_getchar(input, pos) != ')')
 			error("iteration_statement:do:missing ')'");
 		Spacing(1);
@@ -1037,32 +1065,32 @@ static Stmt *iteration_statement(){
 		if(str_getchar(input, pos) != '(')
 			error("iteration_statement:for:missing '('");
 		Spacing(1);
-		res->init = expression();
+		res->init = expression(env);
 		if(str_getchar(input, pos) != ';')
 			error("iteration_statement:for:missing ';'");
 		Spacing(1);
-		res->Nchild = expression();
+		res->Nchild = expression(env);
 		if(str_getchar(input, pos) != ';')
 			error("iteration_statement:for:missing ';'");
 		Spacing(1);
-		res->iteration = expression();
+		res->iteration = expression(env);
 		if(str_getchar(input, pos) != ')')
 			error("iteration_statement:for:missing ')'");
 		Spacing(1);
-		res->rhs = statement();
+		res->rhs = statement(env);
 		res->count = count_loop++;
 	}
 	return res;
 }
 
 // statement <- compound_statement / jump_statement / expression_statement / selection_statement / iteration_statement
-static Stmt *statement(){
+static Stmt *statement(env *env){
 	Stmt *res;
-	if((res = compound_statement()))return res;
-	if((res = jump_statement()))return res;
-	if((res = expression_statement()))return res;
-	if((res = selection_statement()))return res;
-	if((res = iteration_statement()))return res;
+	if((res = compound_statement(env)))return res;
+	if((res = jump_statement(env)))return res;
+	if((res = expression_statement(env)))return res;
+	if((res = selection_statement(env)))return res;
+	if((res = iteration_statement(env)))return res;
 	return NULL;
 }
 
@@ -1285,7 +1313,7 @@ static void assign_function(Decs *in, Def *func){
 		struct id_container *con = new_container(), *result;
 		if(in->lhs)assign_function(in->lhs, func);
 		con->name = in->name;
-		result = list_search(con, id_container_cmp, gidlist);
+		result = list_search(con, id_container_cmp, func->env->outer->var_list);
 		if(result){
 			if(!is_same_type(type, result->type))
 				error("assign_function:type error");
@@ -1295,21 +1323,17 @@ static void assign_function(Decs *in, Def *func){
 		}else{
 			con->type = type;
 			con->defined = true;
-			list_append(con, gidlist);
+			list_append(con, func->env->outer->var_list);
 		}
 		func->name = con->name;
 	}else if(in->type == DEC_PARAM){
 		type->args = list_empty();
 		struct id_container *con = new_container(), *result;
-		list *varlist = local_variable_assign(in);
-		for(int i = 0; i < list_len(varlist); i++){
-			Num *n = new_Num(ID);
-			con->name = list_getn(i, varlist);
-			result = list_search(con, id_container_cmp, idlist);
-			n->offset = result->offset;
-			n->vtype = result->type;
+		for(Decs *it = in; it; it = it->next){
+			variable_assign(it, func->env);
+			Num *n = new_Var(it->rhs->rhs->name, func->env);
 			list_append(n, func->arguments);
-			list_append(result->type, type->args);
+			list_append(n->vtype, type->args);
 		}
 	}else{
 		fprintf(stderr, "%d\n", in->type);
@@ -1318,17 +1342,18 @@ static void assign_function(Decs *in, Def *func){
 }
 
 // function_definition <- type-specifier declarator compound_statement
-static Def *function_definition(){
+static Def *function_definition(env *env){
 	char *c = str_pn(input, pos);
 	Def *res = new_Def(FUN);
 	Decs *in = new_Decs(DEC_DEF);
+	res->env = new_env(env);
 	in->lhs = type_specifier();
 	if(in->lhs == NULL)return NULL;
-	in->rhs = declarator();
+	in->rhs = declarator(env);
 	assign_function(in, res);
 
-	res->Schild = compound_statement();
-	struct id_container *tmp = list_getn(list_len(idlist) - 1, idlist);
+	res->Schild = compound_statement(res->env);
+	struct id_container *tmp = list_getn(list_len(res->env->var_list) - 1, res->env->var_list);
 	res->idcount = tmp ? tmp->offset : 0;
 	return res;
 }
@@ -1362,79 +1387,32 @@ static list *make_type(Decs *in){
 	}
 }
 
-static Def *global_variable_assign(Decs *in){
-	static Typeinfo *type;
-	static Def *res;
-	if(in->type == DEC_DEC){
-		type = NULL;
-		res = NULL;
-		global_variable_assign(in->lhs);
-		if(in->rhs)global_variable_assign(in->rhs);
-	}else if(in->type == DEC_TYPE){
-		type = in->vtype;
-		//type = new_Typeinfo(TINT);
-	}else if(in->type == DEC_DECTOR){
-		if(in->lhs)global_variable_assign(in->lhs);
-		global_variable_assign(in->rhs);
-	}else if(in->type == DEC_VAR ||
-			in->type == DEC_ARRAY){
-		if(in->type == DEC_ARRAY){
-			Typeinfo *tmp = new_Typeinfo(TARRAY);
-			tmp->ptr = type;
-			type = tmp;
-		}
-		struct id_container *con = new_container();
-		con->name = in->name;
-		if(list_search(con, id_container_cmp, gidlist))
-			error("global_variable_assign:redeclaration");
-		con->type = type;
-		list_append(con, gidlist);
-		res = new_Def(GVDEF);
-		res->name = in->name;
-		if(in->type == DEC_ARRAY)
-			res->idcount = type->ptr->size * in->size;
-		else
-			res->idcount = type->size;
-	}else if(in->type == DEC_FUN){
-		struct id_container *con = new_container();
-		Typeinfo *tmp = new_Typeinfo(TFUNC);
-		tmp->ptr = type;
-		type = tmp;
-		if(in->lhs)global_variable_assign(in->lhs);
-		con->name = in->name;
-		con->type = type;
-		if(!list_search(con, id_container_cmp, gidlist))
-			list_append(con, gidlist);
-		res = new_Def(GVDEF);
-	}else if(in->type == DEC_PARAM){
-		type->args = make_type(in);
-	}else{
-		fprintf(stderr, "dec no:%d\n", in->type);
-		error("global_variable_assign:undefined");
-	}
-	return res;
-}
-
 //external_declaration <- declaration / function_definition
-static Def *external_declaration(){
+static Def *external_declaration(env *env){
 	Def *res = NULL;
 	Decs *dec = declaration();
 	// global variable / prototype declaration
 	if(dec){
-		res = global_variable_assign(dec);
+		variable_assign(dec, env);
+		res = new_Def(GVDEF);
+		res->name = dec->rhs->rhs->name;
+		struct id_container *con = new_container(), *tmp;
+		con->name = res->name;
+		tmp = list_search(con, id_container_cmp, env->var_list);
+		res->idcount = tmp->type->size * tmp->size;
 		return res;
 	}
 	// function definition
-	res = function_definition();
+	res = function_definition(env);
 	return res;
 }
 
 // translation_unit <- external_declaration+;
-static Def *translation_unit(){
-	Def *res = external_declaration(), *tmp;
+static Def *translation_unit(env *env){
+	Def *res = external_declaration(env), *tmp;
 	if(!res)return NULL;
 	tmp = res;
-	while((tmp->next = external_declaration()))
+	while((tmp->next = external_declaration(env)))
 		tmp = tmp->next;
 	return res;
 }
@@ -1442,13 +1420,12 @@ static Def *translation_unit(){
 void *parse(str *s){
 	input = s;
 	pos = 0;
-	idlist = list_empty();
-	gidlist = list_empty();
+	env *env = new_env(NULL);
 	strlist = list_empty();
 	count_if = 0;
 	count_loop = 0;
 	Spacing(0);
-	Def *res = translation_unit();
+	Def *res = translation_unit(env);
 	res->strlist = strlist;
 	return res;
 }
