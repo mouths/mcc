@@ -1165,6 +1165,7 @@ static Decs *parameter_list(){
 	int p = pos;
 	tmp = res;
 	while(str_getchar(input, pos) == ','){
+		Spacing(1);
 		tmp->next = parameter_declaration();
 		tmp = tmp->next;
 		if(!tmp){

@@ -315,3 +315,13 @@ int main(){
 	printf(\"fib(5) = %d\\n\", fib(5));
 	return 0;
 }" 0
+try "
+int sub(int a, int b){
+return a - b;
+}
+int main(){
+	int a, b;
+	a = 4;
+	b = 2;
+	return sub(a, b);
+}" 2
